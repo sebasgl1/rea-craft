@@ -50,7 +50,7 @@ Deja el informe en `rea-craft-test-report.md`.
 `craft-anything-cli doctor` también revisa cada plugin: si su programa existe, si sus herramientas se
 leyeron y si arranca y responde; y avisa si `build.study_engines` nombra a REA sin el plugin listo.
 
-En la app de escritorio: Settings → Safety (Seguridad) → **Motor de estudio** (Integrado / Integrado + REA /
+En la app de escritorio: Settings → Builds (Construcción) → **Motor de estudio** (Integrado / Integrado + REA /
 Solo REA).
 
 ## Instalación

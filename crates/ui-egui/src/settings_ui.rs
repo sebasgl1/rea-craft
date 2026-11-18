@@ -1083,6 +1083,28 @@ fn builds(app: &mut CraftApp, ui: &mut Ui) {
     row(ui, "Builds at once", "How many projects may build at the same time. More wait their turn.", |ui| {
         changed |= number(ui, &mut b.parallel, 1..=8, "", "");
     });
+    row(
+        ui,
+        "Study engine",
+        "In Deep mode, which engine studies the original: the built-in one, REA as well, or REA alone. With REA, each build of a JavaScript app is also checked against the original. REA is a plugin (see REA-CRAFT.md).",
+        |ui| {
+            use craft_anything_engine::settings::{STUDY_CRAFT, STUDY_REA};
+            let sel = match (b.studies_with(STUDY_CRAFT), b.studies_with(STUDY_REA)) {
+                (true, true) => 1,
+                (false, true) => 2,
+                _ => 0,
+            };
+            if let Some(i) = widgets::segmented(ui, &["Built-in", "Built-in + REA", "REA only"], sel, theme::ControlSize::Medium) {
+                let engines: &[&str] = match i {
+                    1 => &[STUDY_CRAFT, STUDY_REA],
+                    2 => &[STUDY_REA],
+                    _ => &[STUDY_CRAFT],
+                };
+                b.study_engines = engines.iter().map(|e| e.to_string()).collect();
+                changed = true;
+            }
+        },
+    );
     ui.add_space(theme::space::SM);
     if let Some(bytes) = app.pinned_copy_bytes {
         row(ui, "Pinned builds", "Size", |ui| {
@@ -1272,29 +1294,6 @@ fn safety(app: &mut CraftApp, ui: &mut Ui) {
         "When you rebuild an app or game, start it once to picture its window and compare the rebuild with it. It runs that program.",
         |ui| {
             if widgets::toggle(ui, &mut app.settings.runtime_study, "Run to study").changed() {
-                app.settings_changed();
-            }
-        },
-    );
-    row(
-        ui,
-        "Study engine",
-        "In Deep mode, which engine studies the original: the built-in one, REA as well, or REA alone. With REA, each build of a JavaScript app is also checked against the original. REA is a plugin (see REA-CRAFT.md).",
-        |ui| {
-            use craft_anything_engine::settings::{STUDY_CRAFT, STUDY_REA};
-            let b = &app.settings.build;
-            let sel = match (b.studies_with(STUDY_CRAFT), b.studies_with(STUDY_REA)) {
-                (true, true) => 1,
-                (false, true) => 2,
-                _ => 0,
-            };
-            if let Some(i) = widgets::segmented(ui, &["Built-in", "Built-in + REA", "REA only"], sel, theme::ControlSize::Medium) {
-                let engines: &[&str] = match i {
-                    1 => &[STUDY_CRAFT, STUDY_REA],
-                    2 => &[STUDY_REA],
-                    _ => &[STUDY_CRAFT],
-                };
-                app.settings.build.study_engines = engines.iter().map(|e| e.to_string()).collect();
                 app.settings_changed();
             }
         },
