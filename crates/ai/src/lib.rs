@@ -1217,7 +1217,14 @@ impl AiHub {
     /// session (#1102).
     pub fn start_builder(&self, entry: &BackendEntry, beginner: bool, transcript: Option<PathBuf>, deep: bool) -> Result<ApiConversation, ToolError> {
         use craft_anything_engine::Toolset;
-        let toolsets = if deep { self.engine.registry().toolsets() } else { vec![Toolset::Core, Toolset::Build] };
+        // Deep mode offers every built-in toolset. A plugin's (an MCP server's or a WASM component's)
+        // stays off until the builder enables it: one server can add hundreds of tools, and their
+        // descriptions alone would fill much of a model's window on every request.
+        let toolsets = if deep {
+            self.engine.registry().toolsets().into_iter().filter(|t| !matches!(t, Toolset::Custom(_))).collect()
+        } else {
+            vec![Toolset::Core, Toolset::Build]
+        };
         self.start_loop(entry, beginner, transcript, deep, &toolsets, true)
     }
 

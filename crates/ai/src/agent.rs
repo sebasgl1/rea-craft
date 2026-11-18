@@ -52,6 +52,10 @@ pub trait ToolHost: Send + Sync {
     fn toolsets(&self) -> Vec<Toolset> {
         Toolset::ALL.to_vec()
     }
+    /// A plugin toolset's own instructions (its MCP server's), told when it is enabled.
+    fn plugin_instructions(&self, _toolset: &str) -> Option<String> {
+        None
+    }
 }
 
 /// The real host: the engine.
@@ -119,6 +123,10 @@ impl ToolHost for EngineHost {
 
     fn toolsets(&self) -> Vec<Toolset> {
         self.0.registry().toolsets()
+    }
+
+    fn plugin_instructions(&self, toolset: &str) -> Option<String> {
+        craft_anything_engine::plugins::instructions_for(&self.0.session(), toolset)
     }
 
     fn call(&self, id: &str, input: Value, consent: bool, cancel: CancelToken) -> Result<ToolOutput, ToolError> {
@@ -887,7 +895,11 @@ impl AgentLoop {
                     Some(t) => {
                         self.enabled.insert(t);
                         let n = self.host.tools(&BTreeSet::from([t])).len();
-                        (json!({"enabled": id, "tools_added": n}).to_string(), true, format!("Enabled {}", t.title()), None)
+                        let mut reply = json!({"enabled": id, "tools_added": n});
+                        if let Some(guide) = self.host.plugin_instructions(id) {
+                            reply["plugin_instructions"] = Value::String(guide);
+                        }
+                        (reply.to_string(), true, format!("Enabled {}", t.title()), None)
                     }
                     None => {
                         let e = ToolError::invalid(format!("No toolset {id:?}")).with_remediation("Call list_toolsets for the ids.");

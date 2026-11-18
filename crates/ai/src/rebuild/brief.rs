@@ -167,10 +167,31 @@ pub(super) fn brief(kind: &dyn TargetKind, cx: &BriefCx, extra: Option<&str>) ->
     if let Some(note) = start_files_note(m) {
         s.push_str(&format!("\n\n{note}"));
     }
+    if let Some(note) = rea_note(ws, cx.deep) {
+        s.push_str(&format!("\n\n{note}"));
+    }
     if let Some(e) = extra.filter(|e| e.trim() != m.request.trim()) {
         s.push_str(&format!("\n\nThe person also said: \"{e}\""));
     }
     s
+}
+
+/// Told when REA studied the original too (capture/rea/): its records, its tools and what its check
+/// after each build compares. Deep mode only; Clean room never runs a plugin.
+pub(super) fn rea_note(ws: &Workspace, deep: bool) -> Option<String> {
+    if !deep || !ws.root.join(super::kinds::rea::CAPTURE_DIR).is_dir() {
+        return None;
+    }
+    let surface = super::kinds::rea::saved_surface(ws).filter(|s| !s.surface.is_empty()).map(|s| {
+        format!(
+            " REA also mapped what the original shows of itself ({}): after each build it reads app/ the same way, and each IPC channel, exposed API member and window of the original's with no counterpart in the build comes back to you as a failed claim.",
+            s.surface.describe()
+        )
+    });
+    Some(format!(
+        "REA, a second reverse-engineering engine, studied the original too: capture/README.md has its notes and capture/rea/ its whole records. Its tools are yours as well: call enable_toolset with \"rea\" (its instructions come back with that call) for deeper questions, such as rea_trace_application_feature to follow a feature through an Electron app, or its readers for formats the craft-anything tools don't cover. Ask for detail \"summary\" first; a complete record can be large.{}",
+        surface.unwrap_or_default()
+    ))
 }
 
 /// The person's own files, when the project started in a folder that had them: the app to edit

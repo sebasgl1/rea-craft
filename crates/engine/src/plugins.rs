@@ -12,6 +12,13 @@
 //! id = "docs"                  # a remote server (Streamable HTTP)
 //! url = "https://mcp.example.com/mcp"
 //! headers = { Authorization = "Bearer …" }
+//!
+//! [[plugins.mcp]]
+//! id = "rea"                   # REA (rea-agents): `default_args` fills an argument a call leaves out,
+//! command = "rea"              # only for tools whose schema declares it
+//! args = ["mcp"]
+//! consent = false              # a build only runs plugin tools that don't ask first
+//! default_args = { detail = "summary" }
 //! ```
 //!
 //! Its tool list is cached (`plugins_refresh`), so starting the app or a CLI command never starts
@@ -25,7 +32,7 @@ use crate::registry::{RuntimeTool, custom_toolset};
 use crate::session::Session;
 use crate::tool::{Ctx, Effects, Requires, ToolOutput};
 use craft_anything_engines::mcp_client::{McpClient, RemoteTool, Server, ServerCommand, ServerUrl, content_text, url_allowed};
-use craft_anything_evidence::{Authority, Confidence, Environment, ErrorCode, EvidenceBuilder, Subject, ToolError};
+use craft_anything_evidence::{Authority, Confidence, Coverage, CoverageStatus, Environment, ErrorCode, EvidenceBuilder, Limitation, Subject, ToolError};
 use craft_anything_platform::sync::Mutex;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
@@ -69,6 +76,10 @@ pub struct McpPlugin {
     /// Ask before each call (it runs someone else's code). Default true.
     #[serde(default = "yes")]
     pub consent: bool,
+    /// Arguments sent when a call leaves them out, for the tools whose input schema declares them
+    /// (REA's `detail = "summary"` keeps its answers small enough for an agent).
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub default_args: BTreeMap<String, Value>,
 }
 
 fn yes() -> bool {
@@ -118,6 +129,16 @@ impl McpPlugin {
         config.join("plugins").join(format!("{}.tools.json", self.id))
     }
 
+    /// Where the server's own instructions (from its handshake) are kept by the last refresh.
+    pub fn instructions_path(&self, config: &std::path::Path) -> PathBuf {
+        config.join("plugins").join(format!("{}.instructions.md", self.id))
+    }
+
+    /// The server's instructions kept by the last refresh, if it sent any.
+    pub fn cached_instructions(&self, config: &std::path::Path) -> Option<String> {
+        std::fs::read_to_string(self.instructions_path(config)).ok().map(|t| t.trim().to_string()).filter(|t| !t.is_empty())
+    }
+
     /// The tools cached by the last refresh (none before the first).
     pub fn cached_tools(&self, config: &std::path::Path) -> Vec<RemoteTool> {
         std::fs::read(self.cache_path(config)).ok().and_then(|b| serde_json::from_slice(&b).ok()).unwrap_or_default()
@@ -138,6 +159,8 @@ pub struct PluginSettings {
 struct Route {
     server: String,
     remote: String,
+    /// The plugin's `default_args` this tool's schema declares.
+    defaults: serde_json::Map<String, Value>,
 }
 
 /// The session's plugins: their settings, running clients and the tool routes.
@@ -205,7 +228,10 @@ pub fn install(session: &mut Session) -> Vec<RuntimeTool> {
             }
             let schema = if t.input_schema.is_object() { t.input_schema.clone() } else { json!({"type": "object"}) };
             let leaked: &'static str = Box::leak(id.clone().into_boxed_str());
-            plugins.routes.insert(leaked, Route { server: p.id.clone(), remote: t.name.clone() });
+            let declared = schema.get("properties").and_then(Value::as_object);
+            let defaults =
+                p.default_args.iter().filter(|(k, _)| declared.is_some_and(|d| d.contains_key(k.as_str()))).map(|(k, v)| (k.clone(), v.clone())).collect();
+            plugins.routes.insert(leaked, Route { server: p.id.clone(), remote: t.name.clone(), defaults });
             tools.push(RuntimeTool {
                 id,
                 title: t.title.clone().unwrap_or_else(|| format!("{}: {}", p.display_name(), t.name)),
@@ -238,7 +264,87 @@ pub fn refresh(p: &McpPlugin, config: &std::path::Path) -> Result<Vec<RemoteTool
     }
     let json = serde_json::to_vec_pretty(&tools).map_err(|e| ToolError::internal(e.to_string()))?;
     crate::project::write_atomic(&path, &json)?;
+    let guide = p.instructions_path(config);
+    match client.instructions() {
+        Some(text) => crate::project::write_atomic(&guide, text.as_bytes())?,
+        None => {
+            let _ = std::fs::remove_file(&guide);
+        }
+    }
     Ok(tools)
+}
+
+/// The instructions of the plugin whose toolset is `toolset`, kept by its last refresh: how its
+/// server wants its tools used (MCP's `instructions`). Shown when an agent enables the toolset.
+pub fn instructions_for(session: &Session, toolset: &str) -> Option<String> {
+    let p = session.settings.plugins.mcp.iter().find(|p| p.enabled && p.id == toolset)?;
+    p.cached_instructions(&session.config_dir())
+}
+
+/// Whether a plugin with this id is configured, on, and has a cached tool list.
+pub fn is_ready(session: &Session, id: &str) -> bool {
+    session.settings.plugins.mcp.iter().any(|p| p.enabled && p.id == id && p.problem().is_none() && p.cache_path(&session.config_dir()).is_file())
+}
+
+/// What a result says about itself, when its structured payload carries the usual evidence fields
+/// (REA's records do): `confidence`, `limitations` (text, or `{code, message}`) and `coverage`
+/// (top level, or in `normalized_result`).
+fn facts_of(payload: &Value) -> (Option<Confidence>, Vec<Limitation>, Option<Coverage>) {
+    let confidence = match payload.get("confidence").and_then(Value::as_str) {
+        Some("observed") => Some(Confidence::Observed),
+        Some("derived") => Some(Confidence::Derived),
+        Some("inferred") => Some(Confidence::Inferred),
+        _ => None,
+    };
+    let limitations = payload
+        .get("limitations")
+        .and_then(Value::as_array)
+        .map(|a| {
+            a.iter()
+                .take(40)
+                .filter_map(|l| match l {
+                    Value::String(m) => Some(Limitation::new("plugin_limitation", m.clone())),
+                    Value::Object(o) => o
+                        .get("message")
+                        .and_then(Value::as_str)
+                        .map(|m| Limitation::new(o.get("code").and_then(Value::as_str).unwrap_or("plugin_limitation"), m)),
+                    _ => None,
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+    let coverage = [payload.get("coverage"), payload.get("normalized_result").and_then(|n| n.get("coverage"))].into_iter().flatten().find_map(|c| {
+        let status = match c.get("status").and_then(Value::as_str)? {
+            s if s.starts_with("complete") => CoverageStatus::Complete,
+            s if s.starts_with("partial") || s == "truncated" => CoverageStatus::Partial,
+            _ => CoverageStatus::Unknown,
+        };
+        Some(Coverage {
+            status,
+            examined: c.get("examined").and_then(Value::as_u64),
+            total: c.get("total").and_then(Value::as_u64),
+            next_offset: c.get("next_offset").and_then(Value::as_u64),
+        })
+    });
+    (confidence, limitations, coverage)
+}
+
+/// The same answer twice is sent once: a text block that only repeats `structuredContent` as JSON
+/// is dropped (REA sends both, so its records reached agents at double their size).
+fn without_repeated_text(mut result: Value) -> Value {
+    let Some(structured) = result.get("structuredContent").cloned() else { return result };
+    if let Some(blocks) = result.get_mut("content").and_then(Value::as_array_mut) {
+        let before = blocks.len();
+        blocks.retain(|b| {
+            let repeats = b.get("type").and_then(Value::as_str) == Some("text")
+                && b.get("text").and_then(Value::as_str).and_then(|t| serde_json::from_str::<Value>(t).ok()).is_some_and(|v| v == structured);
+            !repeats
+        });
+        if blocks.len() < before {
+            blocks.push(json!({"type": "text", "text": "(The full answer is in structuredContent.)"}));
+        }
+    }
+    result
 }
 
 /// Start a plugin's server and complete the handshake, keeping a failure log when it fails.
@@ -293,8 +399,13 @@ fn call_plugin(ctx: &mut Ctx<'_>, params: Value) -> Result<ToolOutput, ToolError
     }
     let Some(c) = slot.as_mut() else { return Err(ToolError::internal("plugin client missing")) };
     let cancel = ctx.cancel.clone();
-    let args = if params.is_null() { json!({}) } else { params.clone() };
-    let result = match c.call_tool(&route.remote, args, CALL_TIMEOUT, &move || cancel.is_cancelled()) {
+    let mut args = if params.is_null() { json!({}) } else { params.clone() };
+    if let Some(given) = args.as_object_mut() {
+        for (k, v) in &route.defaults {
+            given.entry(k.clone()).or_insert_with(|| v.clone());
+        }
+    }
+    let result = match c.call_tool(&route.remote, args.clone(), CALL_TIMEOUT, &move || cancel.is_cancelled()) {
         Ok(r) => r,
         Err(e) => {
             // A server that died is started again on the next call.
@@ -306,6 +417,9 @@ fn call_plugin(ctx: &mut Ctx<'_>, params: Value) -> Result<ToolOutput, ToolError
     };
     let text = content_text(&result);
     let summary: String = if text.is_empty() { format!("{} answered.", plugin.display_name()) } else { text.chars().take(300).collect() };
+    let structured = result.get("structuredContent").cloned().or_else(|| serde_json::from_str::<Value>(&text).ok()).unwrap_or(Value::Null);
+    let (confidence, limitations, coverage) = facts_of(&structured);
+    let result = without_repeated_text(result);
     let env = Environment {
         clean_room: ctx.session.clean_room(),
         engine: format!("plugin:{}", plugin.id),
@@ -314,9 +428,11 @@ fn call_plugin(ctx: &mut Ctx<'_>, params: Value) -> Result<ToolOutput, ToolError
         language_id: None,
     };
     let e = EvidenceBuilder::new(ctx.tool, Subject { kind: "plugin".into(), sha256: None, name: Some(plugin.display_name().to_string()) }, env)
-        .params(params)
+        .params(args)
         .authority(Authority::OutsideService)
-        .confidence(Confidence::Observed)
+        .confidence(confidence.unwrap_or(Confidence::Observed))
+        .limitations(limitations)
+        .coverage(coverage.unwrap_or_default())
         .result(result)
         .summary(summary)
         .build()?;
@@ -364,6 +480,7 @@ mod tests {
             headers: BTreeMap::new(),
             enabled: true,
             consent: true,
+            default_args: BTreeMap::new(),
         }
     }
 
@@ -402,6 +519,32 @@ mod tests {
         let other = tempfile::tempdir().unwrap();
         assert!(refresh(&remote, other.path()).is_err());
         assert!(!crate::failure_log::dir_in(other.path()).exists(), "no log for a remote server");
+    }
+
+    #[test]
+    fn a_repeated_text_block_is_dropped_and_the_records_own_facts_are_kept() {
+        let rec = json!({"confidence": "derived", "limitations": ["only static facts", {"code": "truncated", "message": "page 1"}], "normalized_result": {"coverage": {"status": "complete-within-view", "examined": 12, "total": 12}}});
+        let result = json!({"content": [{"type": "text", "text": rec.to_string()}], "structuredContent": rec});
+        let trimmed = without_repeated_text(result);
+        let blocks = trimmed["content"].as_array().unwrap();
+        assert_eq!(blocks.len(), 1);
+        assert!(blocks[0]["text"].as_str().unwrap().contains("structuredContent"));
+        let (c, l, cov) = facts_of(&trimmed["structuredContent"]);
+        assert_eq!(c, Some(Confidence::Derived));
+        assert_eq!(l.len(), 2);
+        assert_eq!(l[1].code, "truncated");
+        let cov = cov.unwrap();
+        assert_eq!((cov.status, cov.examined, cov.total), (CoverageStatus::Complete, Some(12), Some(12)));
+        let other = json!({"content": [{"type": "text", "text": "hello"}], "structuredContent": {"a": 1}});
+        assert_eq!(without_repeated_text(other.clone()), other, "a different text is kept");
+    }
+
+    #[test]
+    fn default_args_parse_from_config() {
+        let parsed: PluginSettings =
+            toml::from_str("[[mcp]]\nid = \"rea\"\ncommand = \"rea\"\nconsent = false\ndefault_args = { detail = \"summary\" }\n").unwrap();
+        assert_eq!(parsed.mcp[0].default_args.get("detail"), Some(&json!("summary")));
+        assert!(!parsed.mcp[0].consent);
     }
 
     #[test]

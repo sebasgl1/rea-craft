@@ -239,6 +239,7 @@ fn plugins_add(ctx: &mut Ctx<'_>, params: Value) -> Result<ToolOutput, ToolError
         headers: p.headers,
         enabled: true,
         consent: true,
+        default_args: Default::default(),
     };
     if let Some(problem) = plugin.problem() {
         return Err(ToolError::invalid(problem));

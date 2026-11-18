@@ -1,0 +1,79 @@
+name: REA-Craft release
+
+# Each push to main builds the desktop app and the CLI for Linux and Windows and publishes them
+# as a new GitHub Release (earlier releases are kept). Files go straight to the release, never
+# to Actions artifacts.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: rea-craft-release
+  cancel-in-progress: false
+
+jobs:
+  create:
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.tag.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: tag
+        run: |
+          version=$(grep -m1 '^version' Cargo.toml | cut -d'"' -f2)
+          echo "tag=v${version}-rea.${GITHUB_RUN_NUMBER}" >> "$GITHUB_OUTPUT"
+      - env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ steps.tag.outputs.tag }}" --target "$GITHUB_SHA" \
+            --title "REA-Craft ${{ steps.tag.outputs.tag }}" \
+            --notes "Craft Anything with REA integration, built from ${GITHUB_SHA::7}. See REA-CRAFT.md for setup."
+
+  build:
+    needs: create
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            name: linux-x86_64
+          - os: windows-latest
+            name: windows-x86_64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Rust toolchain
+        shell: bash
+        run: |
+          rustup toolchain install 1.97 --profile minimal
+          rustup default 1.97
+      - name: Linux libraries
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential libxkbcommon-dev libxkbcommon-x11-0 libwayland-dev libx11-dev libxrandr-dev libxi-dev libgl1-mesa-dev libgtk-3-dev
+      - name: Build
+        shell: bash
+        run: cargo build --release --locked -p craft-anything -p craft-anything-cli
+      - name: Package and upload
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          dir="rea-craft-${{ needs.create.outputs.tag }}-${{ matrix.name }}"
+          mkdir "$dir"
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            cp target/release/craft-anything.exe target/release/craft-anything-cli.exe "$dir/"
+            cp REA-CRAFT.md LICENSE-MIT LICENSE-APACHE NOTICE "$dir/"
+            7z a "$dir.zip" "$dir" > /dev/null
+            gh release upload "${{ needs.create.outputs.tag }}" "$dir.zip"
+          else
+            cp target/release/craft-anything target/release/craft-anything-cli "$dir/"
+            cp REA-CRAFT.md LICENSE-MIT LICENSE-APACHE NOTICE "$dir/"
+            tar czf "$dir.tar.gz" "$dir"
+            gh release upload "${{ needs.create.outputs.tag }}" "$dir.tar.gz"
+          fi
