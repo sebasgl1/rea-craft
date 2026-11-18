@@ -922,6 +922,13 @@ that. Anything skipped while reading is reported with the result (a count, a rea
 "incomplete" flag), and a test of an error path asserts what the caller is told, not only that
 the loop ended.
 
+**A result with two "what was missed" fields, read as one.** A folder walk says a listing is
+incomplete in `truncated` and names the folders it couldn't list in `unlisted`; five tools read
+only the flag, so an unreadable folder was "a limit" with no name and no reason, and a folder that
+couldn't be listed at all set `unlisted` without the flag. When a result carries what was missed
+in more than one field, check every caller reads all of them, and test each caller with the real
+failure (a folder held without sharing, or without permission), not only the walk.
+
 **An ignore file was read whole.** `walk_dir` read each `.gitignore` with `read_to_string` and
 swallowed every error: a sparse oversized file could size the allocation until the process aborted,
 a FIFO at that path could block the walk, and an unreadable or non-UTF-8 file lost its rules with no

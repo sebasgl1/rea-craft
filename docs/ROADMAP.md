@@ -1038,6 +1038,9 @@ Owner: open · Status: in progress
       document functions touched by the OpenCode model-selection changes.
 - [x] Integrate the five-level `Effort` type from #395 for agent variants, and share a strict
       disk-based selection save between the hub and headless tools, preserving unrelated edits.
+- [x] Settings → AI offers no model choice for Codex, so its model can only be set by editing
+      config.toml (#2109): offer Codex's own listed models (`codex debug models`) and its default
+      — claimed: justinjohn0306, branch bugfix/r2.2-codex-model-picker
 - [x] Rebase onto main after #395's squash merge, preserve extra model arguments without a saved
       selection, and render the remote-host placeholder visibly in the setup instructions.
 - [x] Hold the UI settings worker's session guard through its disk save so it cannot overwrite
@@ -2039,8 +2042,13 @@ Owner: open · Status: in progress
       folder or archive no longer shown is ignored, including its error; UI regressions cover both
       scopes and an ignored error
       — claimed: AlexJoaquimPereira, branch bugfix/r3.9-game-files-stale-results
-- [ ] Pick game A, B, then A again while the first A look is still running: the older A result can
-      still land after the newer one. Correlate each look with a request id, not only the path
+- [x] Pick game A, B, then A again while the first A look is still running: the older A result can
+      still land after the newer one. Done: each look and listing carries the job that asked for
+      it, and only the jobs the screen still waits for are applied, so a repeated pick ignores the
+      older answer; a folder whose name isn't text is refused with a message before a look starts.
+      UI regressions cover the same-folder re-pick through the app's dispatch, the refusal, and a
+      failed or superseded worker settling only its own spinner
+      — claimed: AlexJoaquimPereira, branch bugfix/r3.9-game-files-request-ids
 - [x] Decode Unreal packed 10-bit normalized and 11-bit floating-point textures through the bounded picture exporter.
       — claimed: Afloat16, branch feature/r3.9-unreal-packed-textures-20261111
 - [x] Unreal: decode cooked half- and full-precision floating-point textures with the shared bounded pixel reader.
@@ -2134,6 +2142,8 @@ Owner: open · Status: in progress
       — claimed: Plastic-time, branch bugfix/r3.11-pseudo-call-arg-followups
 - [x] In pseudo-C, keep argument loads before writes that may change them when the width is unknown, the frame slot is indexed, the segments differ, the instruction is not modelled or the load reads a literal, and stop a Win64 outgoing stack argument folding after a write to its slot (#2119 follow-up).
       — claimed: Plastic-time, branch bugfix/r3.11-pseudo-memory-write-overlap
+- [x] Preserve argument loads across implicit and multi-register writes, and limit fixed-width Win64 slot invalidation to overlapping offsets (#2124 follow-up).
+      — claimed: Plastic-time, branch bugfix/r3.11-pseudo-write-footprints
 - [ ] `native_source_folder_write` uses the built-in decompiler only: use Ghidra in Deep mode when
       it's there
 - [x] Keep source registers alive when an AArch64 arithmetic result is discarded into the zero register.
@@ -2236,9 +2246,25 @@ Owner: open · Status: in progress
       a count and the first reason (`.` for the root). The notes that named only the file-count or
       depth limit name every limit. An entry that is there but can't be looked at was run with a
       made-up name only, not with a real permission failure
-- [ ] Five calls of `walk_dir` (`apple_tools` twice, `application_tools`, `managed_tools`,
-      `web_tools`) read only `truncated`, so a folder with unreadable entries reads there as "cut
-      short" without naming the folder or the reason: pass `unlisted` on as `core_archive_show` does
+- [x] Five calls of `walk_dir` (`apple_tools` twice, `application_tools`, `managed_tools`,
+      `web_tools`) read only `truncated`, so a folder with unreadable entries read there as "cut
+      short" without naming the folder or the reason. `app_source_import`, `js_source_bundle_compare`
+      (a source folder given as a path), `apple_nib_decode`, `apple_dylibs_resolve`,
+      `managed_reconstruction_check` and `js_sources_restore` now carry an `unlisted_folders`
+      limitation (or note) naming the first five such folders with the system's reason, and how many
+      more there are (it isn't a full list), and partial coverage; a folder below the root that can't
+      be listed at all marks the walk as cut short too. When nothing is found to work on (no `.cs`
+      files, no scripts), the error names the folders that couldn't be listed and says to make them
+      readable; inputs with the same folder name are told apart (`dist (input 2)`), and
+      `apple_dylibs_resolve` is partial whenever its walk was cut. Tested on Windows with a folder
+      held without sharing; the Unix path (no permission) runs in CI
+- [ ] `managed_reconstruction_check` stops reading `.cs` files at its file or size budget and says so
+      in a note, but its coverage stays complete, so members declared only in an unread file read as
+      missing in a complete check (CodeRabbit on #2106): carry the cut into coverage, apart from the
+      unlisted-folder limitation
+- [ ] `js_sources_restore` keeps every unlisted folder of every input in memory to name five of them:
+      keep the count and the first five (CodeRabbit on #2106)
+      — claimed: hichang4u, branch bugfix/r3.11-walk-gaps-named
       — claimed: hichang4u, branch bugfix/r3.11-walk-entry-reads
 - [x] `core_archives_compare` reports `rows_capped` and a partial-coverage limitation when the
       added, removed, changed or moved lists are cut at `max_rows`, while its counts stay complete.

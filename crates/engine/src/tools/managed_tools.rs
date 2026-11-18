@@ -3,7 +3,7 @@
 //! verification against native exports, checking decompiled C# against metadata, and an
 //! application graph.
 
-use super::artifact_tools::{WalkOptions, is_path_input, resolve_evidence_input, walk_dir};
+use super::artifact_tools::{WALK_CUT_NOTE, WalkOptions, is_path_input, nothing_found_error, resolve_evidence_input, unlisted_limitation, walk_dir};
 use super::native_common::{page, spec};
 use super::static_input::{Input, builder, format_err, load, load_path};
 use crate::tool::{Ctx, Effects, Requires, ToolOutput, ToolSpec, Toolset, parse_params, schema_of};
@@ -753,8 +753,9 @@ fn managed_native_calls_verify(ctx: &mut Ctx<'_>, params: Value) -> Result<ToolO
 // ---------------------------------------------------------------------------------------------
 // Import a reconstruction
 
-/// (file name, text) pairs and notes about what was skipped.
-type Sources = (Vec<(String, String)>, Vec<String>);
+/// (file name, text) pairs, notes about what was skipped, and the folders that couldn't be listed
+/// in full as (path, reason).
+type Sources = (Vec<(String, String)>, Vec<String>, Vec<(String, String)>);
 
 fn read_sources(p: &ImportParams, ctx: &Ctx<'_>) -> Result<Sources, ToolError> {
     const MAX_TOTAL: u64 = 64 << 20;
@@ -764,7 +765,7 @@ fn read_sources(p: &ImportParams, ctx: &Ctx<'_>) -> Result<Sources, ToolError> {
             if t.len() as u64 > MAX_TOTAL {
                 return Err(ToolError::new(ErrorCode::OverLimit, "source_text is larger than 64 MiB"));
             }
-            Ok((vec![("source_text".into(), t.clone())], notes))
+            Ok((vec![("source_text".into(), t.clone())], notes, Vec::new()))
         }
         (None, Some(sp)) => {
             let path = PathBuf::from(sp);
@@ -777,7 +778,7 @@ fn read_sources(p: &ImportParams, ctx: &Ctx<'_>) -> Result<Sources, ToolError> {
                     return Err(ToolError::new(ErrorCode::OverLimit, format!("{sp} is larger than 64 MiB")));
                 }
                 let bytes = std::fs::read(&path).map_err(|e| ToolError::io(sp, e))?;
-                return Ok((vec![(sp.clone(), String::from_utf8_lossy(&bytes).into_owned())], notes));
+                return Ok((vec![(sp.clone(), String::from_utf8_lossy(&bytes).into_owned())], notes, Vec::new()));
             }
             let skip = |_: &str| false;
             let walked = walk_dir(
@@ -810,12 +811,12 @@ fn read_sources(p: &ImportParams, ctx: &Ctx<'_>) -> Result<Sources, ToolError> {
                 }
             }
             if walked.truncated {
-                notes.push("the folder walk stopped at a limit".into());
+                notes.push(WALK_CUT_NOTE.into());
             }
             if out.is_empty() {
-                return Err(ToolError::invalid(format!("no .cs files under {sp}")));
+                return Err(nothing_found_error(format!("no .cs files under {sp}"), &walked.unlisted));
             }
-            Ok((out, notes))
+            Ok((out, notes, walked.unlisted))
         }
         _ => Err(ToolError::invalid("pass exactly one of source_path or source_text")),
     }
@@ -825,7 +826,7 @@ fn managed_reconstruction_check(ctx: &mut Ctx<'_>, params: Value) -> Result<Tool
     let p: ImportParams = parse_params(params)?;
     let max_rows = p.max_rows.clamp(1, 100_000);
     let ms = managed_source(ctx, &p.members, &["managed_members_list"])?;
-    let (sources, notes) = read_sources(&p, ctx)?;
+    let (sources, notes, unlisted) = read_sources(&p, ctx)?;
     let a = open_assembly(&ms.input)?;
     let members = dotnet::members(&a, &MemberOptions { type_filter: ms.type_names.clone(), skip_bodies: true, ..MemberOptions::default() });
     let mut scan = csharp::CsScan::default();
@@ -862,6 +863,9 @@ fn managed_reconstruction_check(ctx: &mut Ctx<'_>, params: Value) -> Result<Tool
     ];
     lims.extend(metadata_limitations(&members.warnings));
     lims.extend(notes.iter().map(|n| Limitation::new("source_read", n.clone())));
+    // Source files in a folder that couldn't be listed were never compared: members only they
+    // declare read as missing.
+    lims.extend(unlisted_limitation(&unlisted));
     lims.extend(scan.warnings.iter().take(20).map(|w| Limitation::new("source_scan", w.clone())));
     let mut b = builder(
         ctx,
@@ -888,7 +892,11 @@ fn managed_reconstruction_check(ctx: &mut Ctx<'_>, params: Value) -> Result<Tool
     .confidence(Confidence::Derived)
     .authority(Authority::Reasoning)
     .limitations(lims)
-    .coverage(Coverage::complete(considered as u64));
+    .coverage(if unlisted.is_empty() {
+        Coverage::complete(considered as u64)
+    } else {
+        Coverage { status: CoverageStatus::Partial, examined: Some(considered as u64), total: None, next_offset: None }
+    });
     if let Some(id) = ms.evidence_id {
         b = b.link(id);
     }
@@ -1127,6 +1135,59 @@ mod tests {
         assert_eq!(super::norm_module("libcraft.so.1"), "craft");
         assert_eq!(super::norm_module("C:\\x\\Craft.DLL"), "craft");
         assert_eq!(super::norm_module("lib"), "lib");
+    }
+
+    /// A source folder that couldn't be listed read as "the folder walk stopped at a limit", and
+    /// the members only it declares as missing from the source, in a check marked complete.
+    #[test]
+    fn a_source_folder_that_cant_be_listed_is_named_with_its_reason() {
+        use super::super::artifact_tools::walk_testing::{assert_names_unlisted, close, unlisted_message};
+        let e = Engine::new(crate::testing::session());
+        let asm = craft_anything_testkit::temp_file("Sample.dll", &fx::managed_assembly(1));
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::create_dir_all(dir.path().join("closed")).unwrap();
+        std::fs::write(dir.path().join("Empty.cs"), "namespace Empty { }\n").unwrap();
+        std::fs::write(dir.path().join("closed/Calc.cs"), fx::RECONSTRUCTION_CS).unwrap();
+        let whole = call(&e, "managed_reconstruction_check", json!({"members": asm, "source_path": dir.path()}));
+        assert_eq!(
+            (whole["result"]["counts"]["missing"].clone(), whole["coverage"]["status"].clone(), unlisted_message(&whole)),
+            (json!(0), json!("complete"), None)
+        );
+        assert_eq!(whole["result"]["source_files"], json!(["Empty.cs", "closed/Calc.cs"]));
+
+        let Some(closed) = close(&dir.path().join("closed")) else { return };
+        let cut = e.call("managed_reconstruction_check", json!({"members": asm, "source_path": dir.path()}), crate::CallOptions::new(crate::Caller::Mcp));
+        drop(closed);
+        let cut = cut.unwrap().to_json();
+        assert_eq!(cut["result"]["source_files"], json!(["Empty.cs"]));
+        assert_ne!(cut["result"]["counts"]["missing"], 0, "what the closed folder declares reads as missing: {cut}");
+        assert_names_unlisted(&cut, "closed");
+        assert!(cut["limitations"].as_array().unwrap().iter().any(|l| l["code"] == "source_read"), "{cut}");
+    }
+
+    /// When the only source is in a folder that can't be listed, "no .cs files" alone sent the
+    /// person looking for files that are there: the error names the folder and why.
+    #[test]
+    fn no_source_found_names_the_folders_that_couldnt_be_listed() {
+        use super::super::artifact_tools::walk_testing::close;
+        let e = Engine::new(crate::testing::session());
+        let asm = craft_anything_testkit::temp_file("Sample.dll", &fx::managed_assembly(1));
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::create_dir_all(dir.path().join("closed")).unwrap();
+        std::fs::write(dir.path().join("closed/Calc.cs"), fx::RECONSTRUCTION_CS).unwrap();
+        let run = || e.call("managed_reconstruction_check", json!({"members": asm, "source_path": dir.path()}), crate::CallOptions::new(crate::Caller::Mcp));
+        let Some(closed) = close(&dir.path().join("closed")) else { return };
+        let refused = run();
+        drop(closed);
+        let err = refused.unwrap_err();
+        assert!(err.message.starts_with("no .cs files under") && err.message.contains("closed (") && err.message.contains("os error"), "{err:?}");
+        assert!(err.remediation.as_deref().is_some_and(|r| r.contains("readable")), "{err:?}");
+        // A folder that has no source at all, seen whole, says only that.
+        let empty = tempfile::tempdir().unwrap();
+        let err = e
+            .call("managed_reconstruction_check", json!({"members": asm, "source_path": empty.path()}), crate::CallOptions::new(crate::Caller::Mcp))
+            .unwrap_err();
+        assert!(err.message.starts_with("no .cs files under") && !err.message.contains("couldn't be listed") && err.remediation.is_none(), "{err:?}");
     }
 
     #[test]

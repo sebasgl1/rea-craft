@@ -117,19 +117,33 @@ pub(crate) const WALK_CUT_NOTE: &str = "the folder listing was cut short by a fi
 
 /// A limitation naming the folders that couldn't be listed, or only in part, as (path, reason), if any (#294).
 pub(crate) fn unlisted_limitation(unlisted: &[(String, String)]) -> Option<Limitation> {
+    unlisted_note(unlisted).map(|note| Limitation::new("unlisted_folders", note))
+}
+
+/// What [`unlisted_limitation`] says, for a tool that reports in notes: the first folders by name,
+/// each with its reason, and how many more there are.
+pub(crate) fn unlisted_note(unlisted: &[(String, String)]) -> Option<String> {
     if unlisted.is_empty() {
         return None;
     }
     let first = unlisted.iter().take(5).map(|(rel, e)| format!("{rel} ({e})")).collect::<Vec<_>>().join(", ");
     let more = unlisted.len().saturating_sub(5);
-    Some(Limitation::new(
-        "unlisted_folders",
-        format!(
-            "{} folder(s) couldn't be listed in full, so some or all of what they hold is missing: {first}{}",
-            unlisted.len(),
-            if more > 0 { format!(" and {more} more") } else { String::new() }
-        ),
+    Some(format!(
+        "{} folder(s) couldn't be listed in full, so some or all of what they hold is missing: {first}{}",
+        unlisted.len(),
+        if more > 0 { format!(" and {more} more") } else { String::new() }
     ))
+}
+
+/// The error for a walk that found nothing to work on: `what` alone when the walk saw every folder,
+/// or with the folders it couldn't list and their reasons, since what was looked for may be in them.
+pub(crate) fn nothing_found_error(what: String, unlisted: &[(String, String)]) -> ToolError {
+    match unlisted_note(unlisted) {
+        None => ToolError::invalid(what),
+        Some(note) => {
+            ToolError::invalid(format!("{what}; {note}")).with_remediation("Make those folders readable (or close what holds them open), then try again.")
+        }
+    }
 }
 
 /// A limitation naming the `.gitignore` files whose rules were skipped, if any.
@@ -179,6 +193,11 @@ fn read_gitignore(dir: &Path, rel: &str, ignore: &mut Ignore, skipped: &mut Vec<
         },
         Err(_) => skipped.push((shown, "couldn't be read".into())),
     }
+}
+
+/// A walk's `unlisted` folders named from `base`, the folder walked: one input among several.
+pub(crate) fn unlisted_under(base: &str, unlisted: Vec<(String, String)>) -> impl Iterator<Item = (String, String)> + use<'_> {
+    unlisted.into_iter().map(move |(rel, e)| (if rel == "." { base.to_string() } else { format!("{base}/{rel}") }, e))
 }
 
 pub(crate) struct WalkOptions<'a> {
@@ -357,7 +376,9 @@ fn walk_dir_reading<I: Iterator<Item = std::io::Result<std::ffi::OsString>>>(
         let entries = match read_dir(&dir) {
             Ok(e) => e,
             Err(e) if rel.is_empty() => return Err(ToolError::io(dir.display(), e)),
+            // What this folder holds is missing from the listing, so the walk didn't see the tree whole.
             Err(e) => {
+                out.truncated = true;
                 out.unlisted.push((rel, e.to_string()));
                 continue;
             }
@@ -1102,6 +1123,64 @@ fn core_archives_compare(ctx: &mut Ctx<'_>, params: Value) -> Result<ToolOutput,
     Ok(ToolOutput::evidence(b.build()?))
 }
 
+/// For tests of what a tool says about a walk: a real folder that can't be listed.
+#[cfg(test)]
+pub(crate) mod walk_testing {
+    use serde_json::Value;
+    use std::path::Path;
+
+    /// Keeps a folder impossible to list until it is dropped.
+    pub(crate) struct Closed {
+        #[cfg(unix)]
+        path: std::path::PathBuf,
+        #[cfg(windows)]
+        _held: std::fs::File,
+    }
+
+    /// Make `dir` fail to list for as long as the result lives: no permission on Unix, held
+    /// without sharing on Windows. `None` where that stops nothing (a test run as root).
+    pub(crate) fn close(dir: &Path) -> Option<Closed> {
+        #[cfg(unix)]
+        let closed = {
+            use std::os::unix::fs::PermissionsExt;
+            std::fs::set_permissions(dir, std::fs::Permissions::from_mode(0o000)).unwrap();
+            Closed { path: dir.to_path_buf() }
+        };
+        #[cfg(windows)]
+        let closed = {
+            use std::os::windows::fs::OpenOptionsExt;
+            // FILE_FLAG_BACKUP_SEMANTICS: what opening a folder takes.
+            Closed { _held: std::fs::OpenOptions::new().read(true).share_mode(0).custom_flags(0x0200_0000).open(dir).unwrap() }
+        };
+        let stops = std::fs::read_dir(dir).is_err();
+        // Only root on Unix lists a folder it has no permission for; a test that returns early
+        // anywhere else would pass without having looked at anything.
+        assert!(stops || cfg!(unix), "{} is held without sharing and can still be listed", dir.display());
+        stops.then_some(closed)
+    }
+
+    #[cfg(unix)]
+    impl Drop for Closed {
+        fn drop(&mut self) {
+            use std::os::unix::fs::PermissionsExt;
+            let _ = std::fs::set_permissions(&self.path, std::fs::Permissions::from_mode(0o755));
+        }
+    }
+
+    /// The `unlisted_folders` limitation of a tool's evidence, if it has one.
+    pub(crate) fn unlisted_message(evidence: &Value) -> Option<String> {
+        let limitations = evidence["limitations"].as_array()?;
+        limitations.iter().find(|l| l["code"] == "unlisted_folders").and_then(|l| l["message"].as_str()).map(str::to_string)
+    }
+
+    /// The evidence says it is partial and names `folder` with the system's reason for it.
+    pub(crate) fn assert_names_unlisted(evidence: &Value, folder: &str) {
+        assert_eq!(evidence["coverage"]["status"], "partial", "{evidence}");
+        let message = unlisted_message(evidence).unwrap_or_else(|| panic!("no unlisted_folders limitation: {evidence}"));
+        assert!(message.contains(&format!("{folder} (")) && message.contains("os error"), "{message}");
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1771,6 +1850,62 @@ mod tests {
             walk_adding(&root, 10, ROOMY, move |d| if d == at_root { Box::new([named("bad\0name")].into_iter()) } else { Box::new(std::iter::empty()) });
         assert_eq!((rels(&w), w.truncated, w.unlisted.len()), (everything.to_vec(), true, 1));
         assert!(w.unlisted.iter().all(|(rel, why)| rel == "." && why.starts_with("1 of its entries couldn't be read: ")), "{:?}", w.unlisted);
+    }
+
+    /// A folder below the root that can't be listed at all leaves the walk marked as cut short, as
+    /// entries that can't be read do: it used to be named in `unlisted` with `truncated` still
+    /// false, so a caller reading only `truncated` took the listing for the whole tree.
+    #[test]
+    fn a_folder_that_cant_be_listed_leaves_the_walk_marked_as_cut_short() {
+        let dir = tempfile::tempdir().unwrap();
+        for f in ["a.txt", "ok/d.txt", "sub/b.txt"] {
+            std::fs::create_dir_all(dir.path().join(f).parent().unwrap()).unwrap();
+            std::fs::write(dir.path().join(f), f).unwrap();
+        }
+        let skip = |_: &str| false;
+        let opts = WalkOptions { max_files: 10, max_depth: 64, skip_dir: &skip, gitignore: false, include_hidden: true };
+        // The system refuses to list "sub", whatever the reason.
+        let refused = walk_dir_reading(dir.path(), &opts, ROOMY, &CancelToken::default(), |d| {
+            if d.ends_with("sub") { Err(std::io::Error::other("no entry")) } else { Ok(names_in(d)) }
+        })
+        .unwrap();
+        assert_eq!((rels(&refused), refused.truncated), (vec!["a.txt", "ok/d.txt"], true));
+        assert_eq!(refused.unlisted, [("sub".to_string(), "no entry".to_string())]);
+        // The same with a real folder the system won't list.
+        let Some(closed) = walk_testing::close(&dir.path().join("sub")) else { return };
+        let real = walk_dir(dir.path(), &opts, &CancelToken::default()).unwrap();
+        drop(closed);
+        assert_eq!((rels(&real), real.truncated, real.unlisted.len()), (vec!["a.txt", "ok/d.txt"], true, 1));
+        assert!(real.unlisted.iter().all(|(rel, why)| rel == "sub" && why.contains("os error")), "{:?}", real.unlisted);
+        assert_eq!(real.dirs, ["ok", "sub"]);
+        // Listed again once it can be.
+        let whole = walk_dir(dir.path(), &opts, &CancelToken::default()).unwrap();
+        assert_eq!((rels(&whole), whole.truncated, whole.unlisted.is_empty()), (vec!["a.txt", "ok/d.txt", "sub/b.txt"], false, true));
+        assert_eq!(
+            unlisted_under("dist", vec![(".".into(), "x".into()), ("sub".into(), "y".into())]).collect::<Vec<_>>(),
+            [("dist".to_string(), "x".to_string()), ("dist/sub".to_string(), "y".to_string())]
+        );
+    }
+
+    /// The same on every system the tests run on: `core_archive_show` names the folder it couldn't list.
+    #[test]
+    fn an_inventory_names_a_folder_it_couldnt_list() {
+        let dir = tempfile::tempdir().unwrap();
+        let bundle = dir.path().join("bundle");
+        std::fs::create_dir_all(bundle.join("closed")).unwrap();
+        std::fs::write(bundle.join("closed/hidden.js"), "console.log('hidden');\n").unwrap();
+        std::fs::write(bundle.join("visible.js"), "console.log('visible');\n").unwrap();
+        let e = Engine::new(crate::testing::session());
+        let readable = call(&e, "core_archive_show", json!({"path": bundle})).unwrap();
+        assert_eq!((readable["result"]["truncated"].clone(), walk_testing::unlisted_message(&readable)), (json!(false), None));
+        let Some(closed) = walk_testing::close(&bundle.join("closed")) else { return };
+        let v = call(&e, "core_archive_show", json!({"path": bundle}));
+        drop(closed);
+        let v = v.unwrap();
+        walk_testing::assert_names_unlisted(&v, "closed");
+        assert_eq!(v["result"]["truncated"], true, "{v}");
+        assert!(v["limitations"].as_array().unwrap().iter().any(|l| l["code"] == "truncated"), "{v}");
+        assert!(v["summary"].as_str().unwrap().contains("listing cut short"), "{v}");
     }
 
     /// #294: a folder that couldn't be listed looked like an ordinary empty folder.

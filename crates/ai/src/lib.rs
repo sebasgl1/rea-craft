@@ -807,10 +807,10 @@ impl AiHub {
         let Some(b) = cfg.backends.iter_mut().find(|b| b.config.name == name) else { return Ok(false) };
         match b.config.kind {
             BackendKind::AgentCli => {
-                // Ask the adapter, not the id: Claude Code is also saved as `claude`, and both must
-                // mean "no --model" when the choice is the default.
-                let claude_code = cli_agents::adapter_for(&b.config.model).ids().contains(&"claude-code");
-                let clear = claude_code && model == crate::anthropic::CLAUDE_CODE_DEFAULT;
+                // Ask the adapter, not the id: Claude Code is also saved as `claude`, and both, like
+                // Codex, must mean "no model passed" when the choice is the default.
+                let own_default = cli_agents::adapter_for(&b.config.model).offers_own_default();
+                let clear = own_default && model == crate::anthropic::CLAUDE_CODE_DEFAULT;
                 if model_options::supported(&b.config) && (clear || b.options.cli_model.as_deref() != Some(model)) {
                     b.options.cli_context = None;
                     b.options.cli_reasoning_effort = None;
