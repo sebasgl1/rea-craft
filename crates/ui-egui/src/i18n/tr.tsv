@@ -1499,3 +1499,8 @@ Sign in to a website	Bir web sitesinde oturum aç
 Some shared files could not be hard-linked and were copied instead ({size}).	Bazı paylaşılan dosyalar sabit bağlantıyla bağlanamadı ve kopyalandı ({size}).
 This server lists several chat models. Choose one:	Bu sunucuda birden fazla sohbet modeli var. Birini seçin:
 Choose a model	Bir model seçin
+Study engine	İnceleme motoru
+In Deep mode, which engine studies the original: the built-in one, REA as well, or REA alone. With REA, each build of a JavaScript app is also checked against the original. REA is a plugin (see REA-CRAFT.md).	Derin modda orijinali hangi motorun incelediği: yerleşik motor, ek olarak REA ya da yalnızca REA. REA ile bir JavaScript uygulamasının her derlemesi orijinalle de karşılaştırılır. REA bir eklentidir (bkz. REA-CRAFT.md).
+Built-in	Yerleşik
+Built-in + REA	Yerleşik + REA
+REA only	Yalnızca REA

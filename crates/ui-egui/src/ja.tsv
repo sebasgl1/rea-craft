@@ -954,3 +954,8 @@ Connecting to {name}… {seconds} s	{name} に接続中… {seconds} 秒
 Some shared files could not be hard-linked and were copied instead ({size}).	共有ファイルの一部はハードリンクできず、コピーしました（{size}）。
 This server lists several chat models. Choose one:	このサーバーには複数のチャットモデルがあります。1 つ選んでください:
 Choose a model	モデルを選ぶ
+Study engine	解析エンジン
+In Deep mode, which engine studies the original: the built-in one, REA as well, or REA alone. With REA, each build of a JavaScript app is also checked against the original. REA is a plugin (see REA-CRAFT.md).	中まで解析するモードで、元のソフトを調べるエンジン：内蔵エンジン、REA も併用、または REA だけ。REA を使うと、JavaScript アプリをビルドするたびに元のソフトとも比べます。REA はプラグインです（REA-CRAFT.md を参照）。
+Built-in	内蔵
+Built-in + REA	内蔵 + REA
+REA only	REA だけ

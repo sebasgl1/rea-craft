@@ -1499,3 +1499,8 @@ Sign in to a website	ลงชื่อเข้าใช้เว็บไซ�
 Some shared files could not be hard-linked and were copied instead ({size}).	ไฟล์ที่แชร์บางไฟล์สร้างฮาร์ดลิงก์ไม่ได้ จึงคัดลอกแทน ({size})
 This server lists several chat models. Choose one:	เซิร์ฟเวอร์นี้มีโมเดลแชตหลายตัว เลือกหนึ่งตัว:
 Choose a model	เลือกโมเดล
+Study engine	เอนจินสำหรับศึกษา
+In Deep mode, which engine studies the original: the built-in one, REA as well, or REA alone. With REA, each build of a JavaScript app is also checked against the original. REA is a plugin (see REA-CRAFT.md).	ในโหมด Deep: เลือกเอนจินที่ศึกษาต้นฉบับ — เอนจินในตัว, ใช้ REA ด้วย หรือใช้ REA อย่างเดียว เมื่อใช้ REA ทุกบิลด์ของแอป JavaScript จะถูกเทียบกับต้นฉบับด้วย REA เป็นปลั๊กอิน (ดู REA-CRAFT.md)
+Built-in	ในตัว
+Built-in + REA	ในตัว + REA
+REA only	REA อย่างเดียว

@@ -1496,3 +1496,8 @@ You're up to date.	Vous êtes à jour.
 {version} is available.	La version {version} est disponible.
 Forget a website sign-in	Oublier la connexion à un site web
 Sign in to a website	Se connecter à un site web
+Study engine	Moteur d'étude
+In Deep mode, which engine studies the original: the built-in one, REA as well, or REA alone. With REA, each build of a JavaScript app is also checked against the original. REA is a plugin (see REA-CRAFT.md).	En mode Approfondi, quel moteur étudie l'original : le moteur intégré, REA en plus, ou REA seul. Avec REA, chaque build d'une app JavaScript est aussi comparé à l'original. REA est un plugin (voir REA-CRAFT.md).
+Built-in	Intégré
+Built-in + REA	Intégré + REA
+REA only	REA seul

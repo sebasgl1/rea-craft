@@ -40,6 +40,19 @@ recrear (Estudiar → Construir → Verificar → Refinar) lo use bien.
      `app/rea-surface-waivers.json` (`{"version": 1, "waivers": [{"part": "IPC channel x", "reason": "…"}]}`)
      y esa parte deja de fallar. Sin razón no cuenta.
 
+## Prueba rápida en tu PC
+
+En la carpeta del Release: `python rea-craft-test.py` (Windows o Linux, sin instalar nada de Python).
+Revisa Node.js, REA y Claude Code (pregunta antes de instalar REA), agrega el plugin a `config.toml`
+con respaldo, crea una app Electron de notas y le pide a Claude Code recrearla en modo Deep con REA.
+Deja el informe en `rea-craft-test-report.md`.
+
+`craft-anything-cli doctor` también revisa cada plugin: si su programa existe, si sus herramientas se
+leyeron y si arranca y responde; y avisa si `build.study_engines` nombra a REA sin el plugin listo.
+
+En la app de escritorio: Settings → Safety (Seguridad) → **Motor de estudio** (Integrado / Integrado + REA /
+Solo REA).
+
 ## Instalación
 
 1. Node.js 22.23.4+ (o 24.22.1+), y REA: `npm install --global rea-agents`

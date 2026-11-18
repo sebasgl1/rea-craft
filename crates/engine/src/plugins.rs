@@ -381,6 +381,121 @@ fn without_repeated_text(mut result: Value) -> Value {
     result
 }
 
+/// How healthy one configured plugin looks, for `doctor`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct PluginHealth {
+    pub id: String,
+    pub level: HealthLevel,
+    pub message: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub fix: Option<String>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum HealthLevel {
+    Ok,
+    Info,
+    Warn,
+    Fail,
+}
+
+fn health(id: &str, level: HealthLevel, message: impl Into<String>, fix: Option<String>) -> PluginHealth {
+    PluginHealth { id: id.to_string(), level, message: message.into(), fix }
+}
+
+/// How long `doctor` waits for one plugin's handshake and tool list.
+const HEALTH_TIMEOUT: Duration = Duration::from_secs(30);
+
+/// `doctor`'s look at every configured MCP plugin: its settings, whether its program is found,
+/// whether its tool list was read, and (when `start` is set) whether it starts and answers now with
+/// the tools that were cached. Starting runs the plugin's own program, as its first call would.
+/// `study_engines` naming a plugin that isn't ready is reported too.
+pub fn health_of(session: &Session, start: bool) -> Vec<PluginHealth> {
+    let config = session.config_dir();
+    let mut out = Vec::new();
+    for p in &session.settings.plugins.mcp {
+        let id = p.id.as_str();
+        if !p.enabled {
+            out.push(health(id, HealthLevel::Info, format!("The {} plugin is turned off.", p.display_name()), None));
+            continue;
+        }
+        if let Some(problem) = p.problem() {
+            out.push(health(id, HealthLevel::Fail, problem, Some("Fix it in config.toml ([[plugins.mcp]]).".into())));
+            continue;
+        }
+        if let Server::Command(cmd) = p.server() {
+            let program = std::path::Path::new(&cmd.command);
+            let found = (program.is_absolute() && program.is_file()) || craft_anything_platform::which(&cmd.command).is_some();
+            if !found {
+                out.push(health(
+                    id,
+                    HealthLevel::Fail,
+                    format!("The {} plugin's program `{}` wasn't found.", p.display_name(), cmd.command),
+                    Some("Install it, or set its full path as `command` in config.toml ([[plugins.mcp]]).".into()),
+                ));
+                continue;
+            }
+        }
+        let cached = p.cached_tools(&config).len();
+        let refresh = "Run `craft-anything-cli plugins-refresh --allow-run`.".to_string();
+        if cached == 0 {
+            out.push(health(
+                id,
+                HealthLevel::Warn,
+                format!("The {} plugin's tools haven't been read yet, so none are offered.", p.display_name()),
+                Some(refresh),
+            ));
+            continue;
+        }
+        if !start {
+            out.push(health(id, HealthLevel::Ok, format!("The {} plugin offers {cached} tools (not started).", p.display_name()), None));
+            continue;
+        }
+        let began = std::time::Instant::now();
+        let answered = McpClient::connect(p.display_name(), &p.server(), HEALTH_TIMEOUT).and_then(|mut c| c.list_tools(HEALTH_TIMEOUT));
+        match answered {
+            Ok(tools) if tools.len() == cached => out.push(health(
+                id,
+                HealthLevel::Ok,
+                format!("The {} plugin started and answered in {} ms with its {cached} tools.", p.display_name(), began.elapsed().as_millis()),
+                None,
+            )),
+            Ok(tools) => out.push(health(
+                id,
+                HealthLevel::Warn,
+                format!("The {} plugin now has {} tools, and {cached} were read last time (it was updated).", p.display_name(), tools.len()),
+                Some(refresh),
+            )),
+            Err(e) => out.push(health(
+                id,
+                HealthLevel::Fail,
+                format!("The {} plugin didn't start or answer: {}", p.display_name(), e.message),
+                Some(e.remediation.unwrap_or_else(|| "Run its command by hand to see what it prints.".into())),
+            )),
+        }
+    }
+    let build = &session.settings.build;
+    for engine in build.study_engines.iter().map(|e| e.trim()).filter(|e| *e != crate::settings::STUDY_CRAFT) {
+        if !is_ready(session, engine) {
+            out.push(health(
+                engine,
+                HealthLevel::Warn,
+                format!("build.study_engines names `{engine}`, but no plugin with that id is configured, on and read, so the built-in engine studies instead."),
+                Some(format!("Add the `{engine}` plugin to config.toml ([[plugins.mcp]]) and run `craft-anything-cli plugins-refresh --allow-run`.")),
+            ));
+        } else if !session.settings.deep_mode {
+            out.push(health(
+                engine,
+                HealthLevel::Info,
+                format!("`{engine}` studies and checks only in Deep mode, which is off in Settings (`--deep` turns it on for one run)."),
+                None,
+            ));
+        }
+    }
+    out
+}
+
 /// Start a plugin's server and complete the handshake, keeping a failure log when it fails.
 fn start(p: &McpPlugin, config: &std::path::Path) -> Result<McpClient, ToolError> {
     McpClient::connect(p.display_name(), &p.server(), START_TIMEOUT).map_err(|e| logged(p, config, e))
@@ -590,6 +705,26 @@ mod tests {
         assert!(asks(&McpPlugin { consent: true, ..plugin("x") }, &t("anything", Value::Null)));
         let parsed: PluginSettings = toml::from_str("[[mcp]]\nid = \"rea\"\ncommand = \"rea\"\nask_tools = [\"*adb*\"]\n").unwrap();
         assert_eq!(parsed.mcp[0].ask_tools, ["*adb*"]);
+    }
+
+    #[test]
+    fn doctor_names_a_missing_program_an_unread_plugin_and_a_study_engine_with_no_plugin() {
+        let mut s = crate::testing::session();
+        let here = std::env::current_exe().unwrap().display().to_string();
+        s.settings.plugins.mcp = vec![
+            McpPlugin { id: "gone".into(), ..plugin("craft-anything-no-such-plugin-server") },
+            McpPlugin { id: "unread".into(), ..plugin(&here) },
+            McpPlugin { id: "off".into(), enabled: false, ..plugin(&here) },
+        ];
+        s.settings.build.study_engines = vec!["craft".into(), "rea".into()];
+        let h = health_of(&s, false);
+        let level = |id: &str| h.iter().find(|x| x.id == id).map(|x| x.level);
+        assert_eq!(level("gone"), Some(HealthLevel::Fail));
+        assert_eq!(level("unread"), Some(HealthLevel::Warn));
+        assert_eq!(level("off"), Some(HealthLevel::Info));
+        assert_eq!(level("rea"), Some(HealthLevel::Warn), "study_engines names rea with no rea plugin");
+        assert!(h.iter().find(|x| x.id == "unread").and_then(|x| x.fix.as_deref()).is_some_and(|f| f.contains("plugins-refresh")));
+        assert!(h.iter().all(|x| x.id != "craft"), "the built-in engine needs no plugin");
     }
 
     #[test]

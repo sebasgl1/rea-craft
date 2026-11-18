@@ -1499,3 +1499,8 @@ Sign in to a website	ვებსაიტზე შესვლა
 Some shared files could not be hard-linked and were copied instead ({size}).	ზოგიერთი საერთო ფაილი მყარი ბმულით ვერ დაკავშირდა და დაკოპირდა ({size}).
 This server lists several chat models. Choose one:	ეს სერვერი რამდენიმე ჩატის მოდელს გვთავაზობს. აირჩიეთ ერთი:
 Choose a model	აირჩიეთ მოდელი
+Study engine	შესწავლის ძრავა
+In Deep mode, which engine studies the original: the built-in one, REA as well, or REA alone. With REA, each build of a JavaScript app is also checked against the original. REA is a plugin (see REA-CRAFT.md).	ღრმა რეჟიმში: რომელი ძრავა სწავლობს ორიგინალს — ჩაშენებული, დამატებით REA, თუ მხოლოდ REA. REA-ით JavaScript აპის ყოველი აწყობა ორიგინალსაც შეედრება. REA პლაგინია (იხ. REA-CRAFT.md).
+Built-in	ჩაშენებული
+Built-in + REA	ჩაშენებული + REA
+REA only	მხოლოდ REA

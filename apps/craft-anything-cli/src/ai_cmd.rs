@@ -502,21 +502,48 @@ pub fn ai(cli: &Cli, c: &AiCommand, f: Format) -> u8 {
     }
 }
 
-/// AI reachability checks for `doctor` (bounded; each configured backend once).
+/// Each configured MCP plugin for `doctor`: found, read, and started once to see it answer.
+fn plugin_checks(engine: &craft_anything_engine::Engine) -> Vec<craft_anything_setup::Check> {
+    use craft_anything_engine::plugins::HealthLevel;
+    use craft_anything_setup::{Check, CheckStatus};
+    let session = engine.session();
+    craft_anything_engine::plugins::health_of(&session, true)
+        .into_iter()
+        .map(|h| {
+            let status = match h.level {
+                HealthLevel::Ok => CheckStatus::Ok,
+                HealthLevel::Info => CheckStatus::Info,
+                HealthLevel::Warn => CheckStatus::Warn,
+                HealthLevel::Fail => CheckStatus::Fail,
+            };
+            let check = Check::new(format!("plugin:{}", h.id), status, h.message);
+            match h.fix {
+                Some(f) => check.fix(f),
+                None => check,
+            }
+        })
+        .collect()
+}
+
+/// AI reachability and plugin checks for `doctor` (bounded; each configured backend once).
 pub fn doctor_checks() -> Vec<craft_anything_setup::Check> {
     use craft_anything_setup::{Check, CheckStatus};
     let Ok(engine) = make_engine(None, None) else { return Vec::new() };
+    let plugins = plugin_checks(&engine);
     let hub = AiHub::new(engine);
     let results = hub.check_reachability();
-    if results.is_empty() {
-        return vec![Check::new("ai", CheckStatus::Info, "No AI backend is set up (optional).").fix("Run `craft-anything-cli ai detect`, then `ai add`.")];
-    }
-    results
-        .into_iter()
-        .map(|(name, r)| match r {
-            Ok(ms) => Check::new(format!("ai:{name}"), CheckStatus::Ok, format!("{name} answered in {ms} ms.")),
-            Err(why) => Check::new(format!("ai:{name}"), CheckStatus::Warn, format!("{name} isn't reachable: {why}"))
-                .fix(format!("Run `craft-anything-cli ai test {name}` for details.")),
-        })
-        .collect()
+    let mut checks: Vec<Check> = if results.is_empty() {
+        vec![Check::new("ai", CheckStatus::Info, "No AI backend is set up (optional).").fix("Run `craft-anything-cli ai detect`, then `ai add`.")]
+    } else {
+        results
+            .into_iter()
+            .map(|(name, r)| match r {
+                Ok(ms) => Check::new(format!("ai:{name}"), CheckStatus::Ok, format!("{name} answered in {ms} ms.")),
+                Err(why) => Check::new(format!("ai:{name}"), CheckStatus::Warn, format!("{name} isn't reachable: {why}"))
+                    .fix(format!("Run `craft-anything-cli ai test {name}` for details.")),
+            })
+            .collect()
+    };
+    checks.extend(plugins);
+    checks
 }

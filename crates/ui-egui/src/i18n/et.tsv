@@ -1499,3 +1499,8 @@ Sign in to a website	Logi veebisaidile sisse
 Some shared files could not be hard-linked and were copied instead ({size}).	Mõnda jagatud faili ei saanud kõvasti linkida ja need kopeeriti ({size}).
 This server lists several chat models. Choose one:	See server pakub mitut vestlusmudelit. Vali üks:
 Choose a model	Vali mudel
+Study engine	Uurimise mootor
+In Deep mode, which engine studies the original: the built-in one, REA as well, or REA alone. With REA, each build of a JavaScript app is also checked against the original. REA is a plugin (see REA-CRAFT.md).	Sügavas režiimis: milline mootor originaali uurib – sisseehitatud, lisaks ka REA või ainult REA. REA-ga võrreldakse iga JavaScripti rakenduse ehitust ka originaaliga. REA on plugin (vt REA-CRAFT.md).
+Built-in	Sisseehitatud
+Built-in + REA	Sisseehitatud + REA
+REA only	Ainult REA

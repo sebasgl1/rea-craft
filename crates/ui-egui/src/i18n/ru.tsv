@@ -1499,3 +1499,8 @@ Sign in to a website	Войти на сайт
 Some shared files could not be hard-linked and were copied instead ({size}).	Некоторые общие файлы не удалось связать жёсткими ссылками, и они были скопированы ({size}).
 This server lists several chat models. Choose one:	Этот сервер предлагает несколько моделей для чата. Выберите одну:
 Choose a model	Выберите модель
+Study engine	Движок для изучения
+In Deep mode, which engine studies the original: the built-in one, REA as well, or REA alone. With REA, each build of a JavaScript app is also checked against the original. REA is a plugin (see REA-CRAFT.md).	В глубоком режиме: какой движок изучает оригинал — встроенный, ещё и REA или только REA. С REA каждая сборка JavaScript-приложения также сравнивается с оригиналом. REA — это плагин (см. REA-CRAFT.md).
+Built-in	Встроенный
+Built-in + REA	Встроенный + REA
+REA only	Только REA

@@ -1499,3 +1499,8 @@ Sign in to a website	登录网站
 Some shared files could not be hard-linked and were copied instead ({size}).	部分共享文件无法建立硬链接，已改为复制（{size}）。
 This server lists several chat models. Choose one:	此服务器提供多个聊天模型。请选择一个：
 Choose a model	选择模型
+Study engine	研究引擎
+In Deep mode, which engine studies the original: the built-in one, REA as well, or REA alone. With REA, each build of a JavaScript app is also checked against the original. REA is a plugin (see REA-CRAFT.md).	在深度模式下，由哪个引擎研究原作：内置引擎、同时使用 REA，或只用 REA。使用 REA 时，JavaScript 应用的每次构建也会与原作比较。REA 是一个插件（见 REA-CRAFT.md）。
+Built-in	内置
+Built-in + REA	内置 + REA
+REA only	仅 REA

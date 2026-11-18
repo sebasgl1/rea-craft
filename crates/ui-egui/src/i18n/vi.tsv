@@ -1499,3 +1499,8 @@ Sign in to a website	Đăng nhập vào một trang web
 Some shared files could not be hard-linked and were copied instead ({size}).	Một số tệp chia sẻ không thể tạo liên kết cứng nên đã được sao chép ({size}).
 This server lists several chat models. Choose one:	Máy chủ này có nhiều mô hình trò chuyện. Hãy chọn một:
 Choose a model	Chọn mô hình
+Study engine	Engine tìm hiểu
+In Deep mode, which engine studies the original: the built-in one, REA as well, or REA alone. With REA, each build of a JavaScript app is also checked against the original. REA is a plugin (see REA-CRAFT.md).	Ở chế độ Chuyên sâu: engine nào tìm hiểu bản gốc — engine có sẵn, thêm REA, hoặc chỉ REA. Với REA, mỗi bản build của ứng dụng JavaScript cũng được so với bản gốc. REA là một plugin (xem REA-CRAFT.md).
+Built-in	Có sẵn
+Built-in + REA	Có sẵn + REA
+REA only	Chỉ REA

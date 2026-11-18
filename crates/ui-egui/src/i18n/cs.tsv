@@ -1499,3 +1499,8 @@ Sign in to a website	Přihlásit se na web
 Some shared files could not be hard-linked and were copied instead ({size}).	Některé sdílené soubory nešlo pevně propojit a byly zkopírovány ({size}).
 This server lists several chat models. Choose one:	Tento server nabízí několik chatovacích modelů. Vyberte jeden:
 Choose a model	Vyberte model
+Study engine	Engine pro průzkum
+In Deep mode, which engine studies the original: the built-in one, REA as well, or REA alone. With REA, each build of a JavaScript app is also checked against the original. REA is a plugin (see REA-CRAFT.md).	V hloubkovém režimu: který engine zkoumá originál – vestavěný, k tomu i REA, nebo jen REA. S REA se každé sestavení aplikace v JavaScriptu navíc porovná s originálem. REA je plugin (viz REA-CRAFT.md).
+Built-in	Vestavěný
+Built-in + REA	Vestavěný + REA
+REA only	Jen REA

@@ -1276,6 +1276,29 @@ fn safety(app: &mut CraftApp, ui: &mut Ui) {
             }
         },
     );
+    row(
+        ui,
+        "Study engine",
+        "In Deep mode, which engine studies the original: the built-in one, REA as well, or REA alone. With REA, each build of a JavaScript app is also checked against the original. REA is a plugin (see REA-CRAFT.md).",
+        |ui| {
+            use craft_anything_engine::settings::{STUDY_CRAFT, STUDY_REA};
+            let b = &app.settings.build;
+            let sel = match (b.studies_with(STUDY_CRAFT), b.studies_with(STUDY_REA)) {
+                (true, true) => 1,
+                (false, true) => 2,
+                _ => 0,
+            };
+            if let Some(i) = widgets::segmented(ui, &["Built-in", "Built-in + REA", "REA only"], sel, theme::ControlSize::Medium) {
+                let engines: &[&str] = match i {
+                    1 => &[STUDY_CRAFT, STUDY_REA],
+                    2 => &[STUDY_REA],
+                    _ => &[STUDY_CRAFT],
+                };
+                app.settings.build.study_engines = engines.iter().map(|e| e.to_string()).collect();
+                app.settings_changed();
+            }
+        },
+    );
     if let Some(p) = app.view.project.clone() {
         ui.add_space(theme::space::SM);
         widgets::caption(ui, &format!("{} {}", tr("Allowed in"), p));

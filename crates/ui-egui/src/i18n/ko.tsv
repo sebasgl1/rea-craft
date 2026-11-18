@@ -1499,3 +1499,8 @@ Sign in to a website	웹사이트에 로그인
 Some shared files could not be hard-linked and were copied instead ({size}).	일부 공유 파일은 하드 링크할 수 없어 복사했습니다 ({size}).
 This server lists several chat models. Choose one:	이 서버에는 채팅 모델이 여러 개 있습니다. 하나를 고르세요:
 Choose a model	모델 선택
+Study engine	분석 엔진
+In Deep mode, which engine studies the original: the built-in one, REA as well, or REA alone. With REA, each build of a JavaScript app is also checked against the original. REA is a plugin (see REA-CRAFT.md).	심층 모드에서 원본을 분석할 엔진: 기본 엔진, REA도 함께, 또는 REA만. REA를 쓰면 JavaScript 앱의 빌드마다 원본과도 비교합니다. REA는 플러그인입니다(REA-CRAFT.md 참고).
+Built-in	기본 엔진
+Built-in + REA	기본 엔진 + REA
+REA only	REA만

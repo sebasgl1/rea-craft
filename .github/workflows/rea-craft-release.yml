@@ -67,12 +67,12 @@ jobs:
           mkdir "$dir"
           if [ "$RUNNER_OS" = "Windows" ]; then
             cp target/release/craft-anything.exe target/release/craft-anything-cli.exe "$dir/"
-            cp REA-CRAFT.md LICENSE-MIT LICENSE-APACHE NOTICE "$dir/"
+            cp REA-CRAFT.md rea-craft-test.py LICENSE-MIT LICENSE-APACHE NOTICE "$dir/"
             7z a "$dir.zip" "$dir" > /dev/null
             gh release upload "${{ needs.create.outputs.tag }}" "$dir.zip"
           else
             cp target/release/craft-anything target/release/craft-anything-cli "$dir/"
-            cp REA-CRAFT.md LICENSE-MIT LICENSE-APACHE NOTICE "$dir/"
+            cp REA-CRAFT.md rea-craft-test.py LICENSE-MIT LICENSE-APACHE NOTICE "$dir/"
             tar czf "$dir.tar.gz" "$dir"
             gh release upload "${{ needs.create.outputs.tag }}" "$dir.tar.gz"
           fi

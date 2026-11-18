@@ -1499,3 +1499,8 @@ Sign in to a website	Iniciar sesión en un sitio web
 Some shared files could not be hard-linked and were copied instead ({size}).	Algunos archivos compartidos no se pudieron enlazar de forma rígida y se copiaron ({size}).
 This server lists several chat models. Choose one:	Este servidor ofrece varios modelos de chat. Elige uno:
 Choose a model	Elige un modelo
+Study engine	Motor de estudio
+In Deep mode, which engine studies the original: the built-in one, REA as well, or REA alone. With REA, each build of a JavaScript app is also checked against the original. REA is a plugin (see REA-CRAFT.md).	En modo Deep, qué motor estudia el original: el integrado, también REA o solo REA. Con REA, cada compilación de una app JavaScript también se compara con el original. REA es un plugin (ver REA-CRAFT.md).
+Built-in	Integrado
+Built-in + REA	Integrado + REA
+REA only	Solo REA
