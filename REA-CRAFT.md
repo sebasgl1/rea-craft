@@ -19,6 +19,9 @@ recrear (Estudiar → Construir → Verificar → Refinar) lo use bien.
      y se le entregan al agente cuando activa el toolset del plugin (`enable_toolset`).
    - Un constructor por API ya no recibe en modo Deep las herramientas de los plugins desde el
      inicio (REA son 255): las activa con `enable_toolset` cuando las necesite.
+   - `ask_tools`: herramientas de un plugin que siempre piden permiso aunque `consent` esté apagado
+     (`*` comodín). Las que el servidor marca como destructivas también preguntan. Una construcción
+     no usa herramientas que preguntan.
 2. **Motor de estudio seleccionable**: `build.study_engines = ["craft", "rea"]`.
    - `["craft"]` (por defecto): como Craft Anything original.
    - `["craft", "rea"]`: estudian los dos; REA agrega una sección "## REA" a `capture/README.md` y
@@ -30,6 +33,12 @@ recrear (Estudiar → Construir → Verificar → Refinar) lo use bien.
    miembros de las APIs que el preload expone a las páginas y las ventanas. Cada parte del original
    que falte en la copia vuelve al constructor como una afirmación fallida, con el nombre exacto.
    Corre justo después de la compilación, así que no necesita que la app arranque.
+   - REA lee una copia de los archivos propios de la app, sin `node_modules` ni cachés; un `.asar`
+     se desempaca primero con `core_archive_extract` de Craft.
+   - Los canales o APIs cuyo nombre se calcula al ejecutar no se comparan (solo se cuentan).
+   - Si la copia hace algo distinto a propósito, el constructor lo declara en
+     `app/rea-surface-waivers.json` (`{"version": 1, "waivers": [{"part": "IPC channel x", "reason": "…"}]}`)
+     y esa parte deja de fallar. Sin razón no cuenta.
 
 ## Instalación
 
@@ -45,6 +54,13 @@ recrear (Estudiar → Construir → Verificar → Refinar) lo use bien.
    args = ["<carpeta global de npm>/node_modules/rea-agents/scripts/rea.mjs", "mcp"]
    consent = false            # una construcción no corre herramientas que piden permiso
    # env = { GHIDRA_INSTALL_DIR = "<Ghidra 12.1+>" }   # para que REA descompile con Ghidra
+
+   # Estas herramientas de REA corren programas, depuradores o cambian un celular: siempre
+   # preguntan, y una construcción no las usa. Las que REA marca como destructivas también preguntan.
+   ask_tools = ["*adb*", "*frida*", "*gdb*", "*rizin*", "*cutter*", "*build_computer*",
+                "*build_capture*", "*build_task*", "*build_environment*", "*build_consent*",
+                "*build_checkpoint*", "capture_*", "observe_*", "instrument_*",
+                "trace_native_ui_action", "reconcile_javascript_runtime"]
 
    [plugins.mcp.default_args]
    detail = "summary"
@@ -62,9 +78,10 @@ recrear (Estudiar → Construir → Verificar → Refinar) lo use bien.
   conexión CDP a un navegador. El constructor igual puede usar REA con `enable_toolset`.
 - REA no descompila binarios sin un motor externo (Ghidra, Hopper, IDA o Kuna); Craft sí, con el
   suyo. El Ghidra que instala Craft se le puede pasar a REA con `GHIDRA_INSTALL_DIR`.
-- La verificación `rea-surface` exige los mismos nombres de canales y APIs que el original. Si una
-  copia los cambia a propósito, el constructor lo puede explicar en su respuesta, pero la
-  verificación seguirá marcándolos.
+- La verificación `rea-surface` exige los mismos nombres de canales y APIs que el original, salvo
+  los que el constructor declare en `app/rea-surface-waivers.json`.
+- Si la app tiene más de 5.000 archivos fuente propios (o 64 MB), REA lee solo una parte y lo que no
+  encuentre no cuenta como faltante.
 - Cada llamada por CLI arranca REA de nuevo; dentro de la app o del servidor MCP, REA queda
   abierto durante la sesión.
 

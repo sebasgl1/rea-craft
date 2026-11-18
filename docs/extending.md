@@ -55,6 +55,9 @@ the next start its tools are offered everywhere, in a toolset of their own (MCP 
 - `env` and `headers` values are never shown by `settings_show` or `plugins_list`.
 - `default_args = { detail = "summary" }` fills an argument a call leaves out, only for the tools whose
   input schema declares it.
+- `ask_tools = ["*adb*", "start_*"]` makes the tools it names ask before each call even with
+  `consent = false` (`*` matches any run of characters); a tool the server marks `destructiveHint`
+  always asks. Builds refuse tools that ask.
 - A text block that only repeats `structuredContent` is dropped; a result's own `confidence`,
   `limitations` and `coverage` become the evidence's. The server's handshake `instructions` are kept
   by `plugins_refresh` and returned (`plugin_instructions`) when an agent enables its toolset.

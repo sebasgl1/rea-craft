@@ -240,6 +240,7 @@ fn plugins_add(ctx: &mut Ctx<'_>, params: Value) -> Result<ToolOutput, ToolError
         enabled: true,
         consent: true,
         default_args: Default::default(),
+        ask_tools: Vec::new(),
     };
     if let Some(problem) = plugin.problem() {
         return Err(ToolError::invalid(problem));

@@ -184,8 +184,9 @@ pub(super) fn rea_note(ws: &Workspace, deep: bool) -> Option<String> {
     }
     let surface = super::kinds::rea::saved_surface(ws).filter(|s| !s.surface.is_empty()).map(|s| {
         format!(
-            " REA also mapped what the original shows of itself ({}): after each build it reads app/ the same way, and each IPC channel, exposed API member and window of the original's with no counterpart in the build comes back to you as a failed claim.",
-            s.surface.describe()
+            " REA also mapped what the original shows of itself ({}): after each build it reads app/ the same way, and each IPC channel, exposed API member and window of the original's with no counterpart in the build comes back to you as a failed claim. If you do one another way on purpose, list it in app/{} with the reason.",
+            s.surface.describe(),
+            super::kinds::rea::WAIVERS_FILE
         )
     });
     Some(format!(

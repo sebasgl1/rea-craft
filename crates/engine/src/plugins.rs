@@ -19,6 +19,7 @@
 //! args = ["mcp"]
 //! consent = false              # a build only runs plugin tools that don't ask first
 //! default_args = { detail = "summary" }
+//! ask_tools = ["*adb*", "*frida*"]  # these ask even with consent off (destructive tools always do)
 //! ```
 //!
 //! Its tool list is cached (`plugins_refresh`), so starting the app or a CLI command never starts
@@ -80,6 +81,12 @@ pub struct McpPlugin {
     /// (REA's `detail = "summary"` keeps its answers small enough for an agent).
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub default_args: BTreeMap<String, Value>,
+    /// Tools that ask before each call even when `consent` is off, by their name on the server
+    /// (`*` matches any run of characters: `"*adb*"`, `"start_*"`). A tool the server marks
+    /// destructive always asks. A build refuses tools that ask, so this is how a plugin trusted for
+    /// reading keeps the tools that run programs or change a device out of builds.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub ask_tools: Vec<String>,
 }
 
 fn yes() -> bool {
@@ -182,8 +189,35 @@ fn id_part(name: &str) -> String {
     out.trim_matches('_').to_string()
 }
 
+/// Whether `name` matches a pattern where `*` stands for any run of characters (case ignored).
+fn matches_pattern(pattern: &str, name: &str) -> bool {
+    let (p, n) = (pattern.trim().to_ascii_lowercase(), name.to_ascii_lowercase());
+    let parts: Vec<&str> = p.split('*').collect();
+    let (Some(first), Some(last)) = (parts.first(), parts.last()) else { return false };
+    if parts.len() == 1 {
+        return p == n;
+    }
+    if !n.starts_with(first) || !n.ends_with(last) || n.len() < first.len().saturating_add(last.len()) {
+        return false;
+    }
+    let Some(mut rest) = n.get(first.len()..n.len().saturating_sub(last.len())) else { return false };
+    for part in parts.iter().skip(1).take(parts.len().saturating_sub(2)) {
+        match rest.find(part).and_then(|i| rest.get(i.saturating_add(part.len())..)) {
+            Some(after) => rest = after,
+            None => return false,
+        }
+    }
+    true
+}
+
+/// Whether a plugin's tool asks before each call: the plugin asks for all of them, the tool is
+/// named in `ask_tools`, or the server marks it destructive.
+fn asks(p: &McpPlugin, t: &RemoteTool) -> bool {
+    p.consent || t.annotations.get("destructiveHint").and_then(Value::as_bool) == Some(true) || p.ask_tools.iter().any(|pat| matches_pattern(pat, &t.name))
+}
+
 /// What a remote tool may do, from its annotations (MCP's hints), plus starting a local server
-/// or reaching a remote one.
+/// or reaching a remote one. `consent`: it asks before each call ([`asks`]).
 fn effects_of(t: &RemoteTool, consent: bool, remote: bool) -> Effects {
     let hint = |k: &str| t.annotations.get(k).and_then(Value::as_bool);
     let mut e = Effects::MUTATES_SESSION | if remote { Effects::ACCESSES_NETWORK } else { Effects::LAUNCHES_PROCESS };
@@ -238,7 +272,7 @@ pub fn install(session: &mut Session) -> Vec<RuntimeTool> {
                 summary: t.description.clone().filter(|d| !d.trim().is_empty()).unwrap_or_else(|| format!("{} from the {} plugin.", t.name, p.display_name())),
                 beginner: format!("A tool from the {} plugin.", p.display_name()),
                 toolset: set,
-                effects: effects_of(&t, p.consent, remote),
+                effects: effects_of(&t, asks(p, &t), remote),
                 requires: Requires::Nothing,
                 schema,
                 run: call_plugin,
@@ -481,6 +515,7 @@ mod tests {
             enabled: true,
             consent: true,
             default_args: BTreeMap::new(),
+            ask_tools: Vec::new(),
         }
     }
 
@@ -537,6 +572,24 @@ mod tests {
         assert_eq!((cov.status, cov.examined, cov.total), (CoverageStatus::Complete, Some(12), Some(12)));
         let other = json!({"content": [{"type": "text", "text": "hello"}], "structuredContent": {"a": 1}});
         assert_eq!(without_repeated_text(other.clone()), other, "a different text is kept");
+    }
+
+    #[test]
+    fn named_and_destructive_tools_ask_even_when_the_plugin_doesnt() {
+        assert!(matches_pattern("*adb*", "install_adb_package") && matches_pattern("start_*", "start_frida_session"));
+        assert!(matches_pattern("*_scenario", "capture_web_scenario") && matches_pattern("Close_GDB_Session", "close_gdb_session"));
+        assert!(matches_pattern("a*b*c", "axxbyyc") && !matches_pattern("a*b*c", "axxcyyb"));
+        assert!(!matches_pattern("*adb*", "analyze_javascript_application") && !matches_pattern("start_*", "restart"));
+        assert!(!matches_pattern("ab*ba", "aba"), "the two ends can't share a character");
+        let t = |name: &str, ann: Value| RemoteTool { name: name.into(), title: None, description: None, input_schema: json!({}), annotations: ann };
+        let p = McpPlugin { consent: false, ask_tools: vec!["*adb*".into()], ..plugin("rea") };
+        assert!(!asks(&p, &t("analyze_javascript_application", json!({"readOnlyHint": false}))));
+        assert!(asks(&p, &t("install_adb_package", Value::Null)));
+        assert!(asks(&p, &t("set_comment", json!({"destructiveHint": true}))), "a destructive tool always asks");
+        assert!(effects_of(&t("install_adb_package", Value::Null), asks(&p, &t("install_adb_package", Value::Null)), false).needs_consent());
+        assert!(asks(&McpPlugin { consent: true, ..plugin("x") }, &t("anything", Value::Null)));
+        let parsed: PluginSettings = toml::from_str("[[mcp]]\nid = \"rea\"\ncommand = \"rea\"\nask_tools = [\"*adb*\"]\n").unwrap();
+        assert_eq!(parsed.mcp[0].ask_tools, ["*adb*"]);
     }
 
     #[test]

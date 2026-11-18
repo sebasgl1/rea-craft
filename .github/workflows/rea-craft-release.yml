@@ -1,11 +1,10 @@
 name: REA-Craft release
 
-# Each push to main builds the desktop app and the CLI for Linux and Windows and publishes them
-# as a new GitHub Release (earlier releases are kept). Files go straight to the release, never
-# to Actions artifacts.
+# Run by hand (Actions -> REA-Craft release -> Run workflow, or the API): builds the desktop app
+# and the CLI for Linux and Windows and publishes them as a new GitHub Release (earlier releases
+# are kept). Changes are gathered first and built only when asked. Files go straight to the
+# release, never to Actions artifacts.
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
 
 permissions:
