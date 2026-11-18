@@ -320,6 +320,11 @@ pub fn is_ready(session: &Session, id: &str) -> bool {
     session.settings.plugins.mcp.iter().any(|p| p.enabled && p.id == id && p.problem().is_none() && p.cache_path(&session.config_dir()).is_file())
 }
 
+/// A plugin's text kept in our evidence, at most 2,000 characters.
+fn short(s: &str) -> String {
+    if s.chars().count() <= 2_000 { s.to_string() } else { s.chars().take(2_000).collect::<String>() + "…" }
+}
+
 /// What a result says about itself, when its structured payload carries the usual evidence fields
 /// (REA's records do): `confidence`, `limitations` (text, or `{code, message}`) and `coverage`
 /// (top level, or in `normalized_result`).
@@ -337,11 +342,11 @@ fn facts_of(payload: &Value) -> (Option<Confidence>, Vec<Limitation>, Option<Cov
             a.iter()
                 .take(40)
                 .filter_map(|l| match l {
-                    Value::String(m) => Some(Limitation::new("plugin_limitation", m.clone())),
+                    Value::String(m) => Some(Limitation::new("plugin_limitation", short(m))),
                     Value::Object(o) => o
                         .get("message")
                         .and_then(Value::as_str)
-                        .map(|m| Limitation::new(o.get("code").and_then(Value::as_str).unwrap_or("plugin_limitation"), m)),
+                        .map(|m| Limitation::new(short(o.get("code").and_then(Value::as_str).unwrap_or("plugin_limitation")), short(m))),
                     _ => None,
                 })
                 .collect()
@@ -448,8 +453,10 @@ pub fn health_of(session: &Session, start: bool) -> Vec<PluginHealth> {
             ));
             continue;
         }
-        if !start {
-            out.push(health(id, HealthLevel::Ok, format!("The {} plugin offers {cached} tools (not started).", p.display_name()), None));
+        if !start || p.consent {
+            // A plugin that asks before each call isn't run without asking, not even by doctor.
+            let why = if p.consent { "not started: it asks before running" } else { "not started" };
+            out.push(health(id, HealthLevel::Ok, format!("The {} plugin offers {cached} tools ({why}).", p.display_name()), None));
             continue;
         }
         let began = std::time::Instant::now();
@@ -475,8 +482,11 @@ pub fn health_of(session: &Session, start: bool) -> Vec<PluginHealth> {
             )),
         }
     }
-    let build = &session.settings.build;
-    for engine in build.study_engines.iter().map(|e| e.trim()).filter(|e| *e != crate::settings::STUDY_CRAFT) {
+    let mut named: Vec<&str> =
+        session.settings.build.study_engines.iter().map(|e| e.trim()).filter(|e| !e.is_empty() && *e != crate::settings::STUDY_CRAFT).collect();
+    named.sort_unstable();
+    named.dedup();
+    for engine in named {
         if !is_ready(session, engine) {
             out.push(health(
                 engine,
@@ -725,6 +735,19 @@ mod tests {
         assert_eq!(level("rea"), Some(HealthLevel::Warn), "study_engines names rea with no rea plugin");
         assert!(h.iter().find(|x| x.id == "unread").and_then(|x| x.fix.as_deref()).is_some_and(|f| f.contains("plugins-refresh")));
         assert!(h.iter().all(|x| x.id != "craft"), "the built-in engine needs no plugin");
+
+        // A plugin that asks before each call is reported from its cache, never started.
+        let cached = McpPlugin { id: "asks".into(), ..plugin(&here) };
+        let cache = cached.cache_path(&s.config_dir());
+        std::fs::create_dir_all(cache.parent().unwrap()).unwrap();
+        std::fs::write(&cache, r#"[{"name": "x"}]"#).unwrap();
+        s.settings.plugins.mcp = vec![cached];
+        s.settings.build.study_engines = vec!["rea".into(), " rea ".into()];
+        let h = health_of(&s, true);
+        let asks = h.iter().find(|x| x.id == "asks").unwrap();
+        assert_eq!(asks.level, HealthLevel::Ok);
+        assert!(asks.message.contains("not started: it asks before running"), "{}", asks.message);
+        assert_eq!(h.iter().filter(|x| x.id == "rea").count(), 1, "a name listed twice is said once");
     }
 
     #[test]

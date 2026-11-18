@@ -209,8 +209,21 @@ fn read_waivers(ws: &Workspace) -> Result<Vec<Waiver>, String> {
     Ok(w.waivers.into_iter().filter(|w| !w.reason.trim().is_empty()).collect())
 }
 
-/// Each part of the original's surface, as a claim that the build has it too. A part the builder
-/// waived with a reason holds, and says so.
+/// Whether the build exposes `part` (`api.member`, or a bare `api` whose members REA couldn't list):
+/// a bare API on either side matches any member of the same API, since what's missing can't be told.
+fn exposes(built: &Surface, part: &str) -> bool {
+    if built.bridge.contains(part) {
+        return true;
+    }
+    let api = part.split('.').next().unwrap_or(part);
+    if !part.contains('.') {
+        return built.bridge.iter().any(|b| b.split('.').next() == Some(api));
+    }
+    built.bridge.contains(api)
+}
+
+/// Each part of the original's surface, as a claim that the build has it too, failed claims first.
+/// A part the builder waived with a reason holds, and says so.
 pub fn surface_claims(original: &Surface, built: &Surface, waivers: &[Waiver]) -> Vec<Claim> {
     let mut claims = Vec::new();
     let mut claim = |title: String, holds: bool, detail: String| {
@@ -228,7 +241,7 @@ pub fn surface_claims(original: &Surface, built: &Surface, waivers: &[Waiver]) -
         );
     }
     for m in &original.bridge {
-        claim(format!("Exposed API {m}"), built.bridge.contains(m), format!("the original's preload gives its pages {m}; the build's preload doesn't"));
+        claim(format!("Exposed API {m}"), exposes(built, m), format!("the original's preload gives its pages {m}; the build's preload doesn't"));
     }
     if original.windows > 0 {
         claim(
@@ -237,7 +250,7 @@ pub fn surface_claims(original: &Surface, built: &Surface, waivers: &[Waiver]) -
             format!("the original opens {} window(s); REA found {} in the build", original.windows, built.windows),
         );
     }
-    claims.truncate(MAX_CLAIMS);
+    claims.sort_by_key(|c| c.passed);
     claims
 }
 
@@ -266,30 +279,66 @@ pub struct Staged {
     pub bytes: u64,
     /// A limit stopped the copy, so REA saw only part of the sources.
     pub capped: bool,
+    /// Folders or entries that couldn't be read, so they weren't copied.
+    pub unreadable: usize,
+}
+
+impl Staged {
+    /// REA saw only part of the sources: a limit stopped the copy or something couldn't be read.
+    pub fn partial(&self) -> bool {
+        self.capped || self.unreadable > 0
+    }
+}
+
+/// What staging leaves out of `root` besides installed packages: the copy being made and, when the
+/// app is the project folder itself (`app_in_root`), Craft Anything's own records there, among them
+/// capture/rea/source, the original's sources. Without this an app edited in place was read
+/// together with the original's code and its own copy.
+fn stage_skips(ws: &Workspace, root: &Path, dest: &Path) -> Vec<PathBuf> {
+    let mut skip = vec![dest.to_path_buf()];
+    if ws.manifest.app_in_root && root == ws.root.as_path() {
+        skip.extend(craft_anything_engine::workspace::OWN_NAMES.iter().map(|n| root.join(n)));
+    }
+    skip
 }
 
 /// Copy the app's own sources under `root` into `dest` (made fresh): the files REA reads, without
-/// installed packages or caches, following no links. Bounded by files, bytes, entries looked at and
-/// depth; `capped` says when a limit was reached.
-pub fn copy_own_sources(root: &Path, dest: &Path) -> Result<Staged, ToolError> {
+/// installed packages or caches and without anything inside `skip`, following no links. Bounded by
+/// files, bytes, entries looked at and depth; `capped` says when a limit was reached and
+/// `unreadable` counts what couldn't be read. A `root` that can't be listed at all is an error.
+pub fn copy_own_sources(root: &Path, dest: &Path, skip: &[PathBuf]) -> Result<Staged, ToolError> {
     if dest.exists() {
         std::fs::remove_dir_all(dest).map_err(|e| ToolError::io(dest.display(), e))?;
     }
     std::fs::create_dir_all(dest).map_err(|e| ToolError::io(dest.display(), e))?;
+    std::fs::read_dir(root).map_err(|e| ToolError::io(root.display(), e))?;
+    let skipped = |p: &Path| skip.iter().any(|s| craft_anything_engine::workspace::inside(s, p));
     let mut staged = Staged::default();
     let mut examined = 0usize;
     let mut stack = vec![(root.to_path_buf(), 0usize)];
     while let Some((dir, depth)) = stack.pop() {
-        let Ok(entries) = std::fs::read_dir(&dir) else { continue };
+        let Ok(entries) = std::fs::read_dir(&dir) else {
+            staged.unreadable = staged.unreadable.saturating_add(1);
+            continue;
+        };
         for entry in entries {
             examined = examined.saturating_add(1);
             if examined > STAGE_MAX_EXAMINED || staged.files >= STAGE_MAX_FILES {
                 staged.capped = true;
                 return Ok(staged);
             }
-            let Ok(entry) = entry else { continue };
+            let Ok(entry) = entry else {
+                staged.unreadable = staged.unreadable.saturating_add(1);
+                continue;
+            };
             let path = entry.path();
-            let Ok(meta) = std::fs::symlink_metadata(&path) else { continue };
+            if skipped(&path) {
+                continue;
+            }
+            let Ok(meta) = std::fs::symlink_metadata(&path) else {
+                staged.unreadable = staged.unreadable.saturating_add(1);
+                continue;
+            };
             let name = entry.file_name().to_string_lossy().to_string();
             if meta.is_dir() {
                 if SKIP_DIRS.contains(&name.as_str()) {
@@ -318,7 +367,10 @@ pub fn copy_own_sources(root: &Path, dest: &Path) -> Result<Staged, ToolError> {
             if let Some(parent) = to.parent() {
                 std::fs::create_dir_all(parent).map_err(|e| ToolError::io(parent.display(), e))?;
             }
-            std::fs::copy(&path, &to).map_err(|e| ToolError::io(path.display(), e))?;
+            if std::fs::copy(&path, &to).is_err() {
+                staged.unreadable = staged.unreadable.saturating_add(1);
+                continue;
+            }
             staged.files = staged.files.saturating_add(1);
             staged.bytes = staged.bytes.saturating_add(meta.len());
         }
@@ -339,7 +391,12 @@ fn js_root(input: &Path) -> PathBuf {
 /// Stage `input`'s own sources into `dest` for REA, unpacking an ASAR first with Craft's
 /// `core_archive_extract` (through `call`), then run REA's map on the copy. Returns the record and
 /// what was staged.
-fn analyze_staged(call: &dyn Fn(&str, Value) -> Result<ToolOutput, ToolError>, input: &Path, dest: &Path) -> Result<(Value, Staged), ToolError> {
+fn analyze_staged(
+    call: &dyn Fn(&str, Value) -> Result<ToolOutput, ToolError>,
+    input: &Path,
+    dest: &Path,
+    skip: &[PathBuf],
+) -> Result<(Value, Staged), ToolError> {
     let root = js_root(input);
     let source = if root.is_file() {
         let out = call("core_archive_extract", json!({"path": root.display().to_string()}))?;
@@ -351,7 +408,7 @@ fn analyze_staged(call: &dyn Fn(&str, Value) -> Result<ToolOutput, ToolError>, i
     } else {
         root
     };
-    let staged = copy_own_sources(&source, dest)?;
+    let staged = copy_own_sources(&source, dest, skip)?;
     let out = call(ANALYZE_JS, json!({"input_path": dest.display().to_string(), "detail": "complete"}))?;
     Ok((record_of(&out), staged))
 }
@@ -373,7 +430,9 @@ impl Check for ReaSurfaceCheck {
         let Some(saved) = saved_surface(cx.ws) else { return Ok(CheckResult::new(self.id(), cx.round, true, "REA hasn't studied the original's JavaScript.")) };
         let out_dir = cx.ws.checks_dir().join(format!("round-{}", cx.round)).join("rea");
         let call = |tool: &str, params: Value| cx.call(tool, params);
-        let (record, staged) = match analyze_staged(&call, &cx.ws.app_dir(), &out_dir.join("source")) {
+        let (app, dest) = (cx.ws.app_dir(), out_dir.join("source"));
+        let skip = stage_skips(cx.ws, &app, &dest);
+        let (record, staged) = match analyze_staged(&call, &app, &dest, &skip) {
             Ok(r) => r,
             Err(e) if e.code == ErrorCode::Cancelled || e.code == ErrorCode::TimedOut => return Err(e),
             // REA couldn't read the build: say so, without holding the build back for it.
@@ -389,7 +448,8 @@ impl Check for ReaSurfaceCheck {
         let built = surface_of(&record);
         let mut artifacts = Vec::new();
         let file = out_dir.join("surface.json");
-        let both = json!({"original": saved.surface, "build": built, "staged_files": staged.files, "staging_capped": staged.capped});
+        let both =
+            json!({"original": saved.surface, "build": built, "staged_files": staged.files, "staging_capped": staged.capped, "unreadable": staged.unreadable});
         if craft_anything_engine::project::write_atomic(&file, serde_json::to_string_pretty(&both).unwrap_or_default().as_bytes()).is_ok()
             && let Ok(rel) = file.strip_prefix(&cx.ws.root)
         {
@@ -401,26 +461,38 @@ impl Check for ReaSurfaceCheck {
         };
         let mut claims = surface_claims(&saved.surface, &built, &waivers);
         let mut notes = Vec::new();
-        if staged.capped {
+        if staged.partial() {
             // Part of the build wasn't read, so a part not found there isn't proof it's missing.
             for c in claims.iter_mut().filter(|c| !c.passed) {
                 notes.push(format!("not found in the part REA read: {}", c.title));
                 c.passed = true;
                 c.detail.clear();
             }
-            notes.insert(0, format!("app/ has more sources than REA reads at once ({} files staged), so missing parts aren't counted", staged.files));
+            let why = if staged.capped {
+                format!("app/ has more sources than REA reads at once ({} files staged)", staged.files)
+            } else {
+                format!("{} folder(s) or file(s) in app/ couldn't be read", staged.unreadable)
+            };
+            notes.insert(0, format!("{why}, so missing parts aren't counted"));
         }
         if let Some(p) = waiver_problem {
             notes.push(p);
         }
-        let failed: Vec<String> = claims.iter().filter(|c| !c.passed).map(|c| c.detail.clone()).collect();
+        let total = claims.len();
+        let failed_all: Vec<String> = claims.iter().filter(|c| !c.passed).map(|c| c.detail.clone()).collect();
+        let mut failed: Vec<String> = failed_all.iter().take(20).cloned().collect();
+        if failed_all.len() > failed.len() {
+            failed.push(format!("and {} more (all in checks/round-{}/rea/surface.json)", failed_all.len() - failed.len(), cx.round));
+        }
+        // Failed claims come first, so the ones kept are the ones to fix.
+        claims.truncate(MAX_CLAIMS);
         let mut note = if failed.is_empty() {
             format!("REA finds the original's surface in the build ({}).", saved.surface.describe())
         } else {
             format!(
                 "REA compared what the app shows of itself (IPC channels, the APIs its preload exposes, its windows) and {} of {} parts of the original's have no counterpart in the build: {}. Add them with the same names. If the build does one another way on purpose, list it in app/{WAIVERS_FILE} as {{\"version\": {WAIVERS_VERSION}, \"waivers\": [{{\"part\": \"<the part's name as written here, e.g. IPC channel notes:copy>\", \"reason\": \"<why>\"}}]}}. The original's surface is in capture/rea/surface.json; the build's in checks/round-{}/rea/surface.json.",
-                failed.len(),
-                claims.len(),
+                failed_all.len(),
+                total,
                 failed.join("; "),
                 cx.round
             )
@@ -465,14 +537,21 @@ impl Worker {
             let analyzed = {
                 let me = &*self;
                 let call = |tool: &str, params: Value| me.call(tool, params);
-                analyze_staged(&call, input, &dir.join("source"))
+                let dest = dir.join("source");
+                analyze_staged(&call, input, &dest, std::slice::from_ref(&dest))
             };
             match analyzed {
                 Ok((record, staged)) => {
                     keep("javascript.json", &record)?;
                     let surface = surface_of(&record);
                     keep(SURFACE_FILE, &serde_json::to_value(SavedSurface { js_input: input.to_path_buf(), surface: surface.clone() }).unwrap_or(Value::Null))?;
-                    let capped = if staged.capped { " A limit stopped the copy, so REA saw only part of it." } else { "" };
+                    let capped = if staged.capped {
+                        " A limit stopped the copy, so REA saw only part of it.".to_string()
+                    } else if staged.unreadable > 0 {
+                        format!(" {} folder(s) or file(s) couldn't be read, so REA saw only part of it.", staged.unreadable)
+                    } else {
+                        String::new()
+                    };
                     notes.push_str(&format!(
                         "\n### Its JavaScript (capture/rea/javascript.json)\n\nREA read the app's own sources ({} files, without installed packages; copied to capture/rea/source/).{capped}\n\nWhat it shows of itself: {}.\n- IPC channels: {}\n- Exposed to its pages: {}\n\nAfter each build REA reads app/ the same way and checks that this surface is there.\n\n{}",
                         staged.files,
@@ -598,8 +677,8 @@ mod tests {
         let dest = out.path().join("staged");
         std::fs::create_dir_all(&dest).unwrap();
         std::fs::write(dest.join("stale.js"), "old").unwrap();
-        let staged = copy_own_sources(root, &dest).unwrap();
-        assert_eq!((staged.files, staged.capped), (3, false));
+        let staged = copy_own_sources(root, &dest, std::slice::from_ref(&dest)).unwrap();
+        assert_eq!((staged.files, staged.capped, staged.unreadable), (3, false, 0));
         assert!(dest.join("main.js").is_file() && dest.join("src/ui/page.tsx").is_file() && dest.join("package.json").is_file());
         assert!(!dest.join("logo.png").exists() && !dest.join("node_modules").exists() && !dest.join(".git").exists());
         assert!(!dest.join("stale.js").exists(), "a fresh copy each time");
@@ -612,9 +691,58 @@ mod tests {
             std::fs::write(src.path().join(format!("m{i}.js")), "1").unwrap();
         }
         let out = tempfile::tempdir().unwrap();
-        let staged = copy_own_sources(src.path(), &out.path().join("s")).unwrap();
-        assert!(staged.capped);
+        let staged = copy_own_sources(src.path(), &out.path().join("s"), &[]).unwrap();
+        assert!(staged.capped && staged.partial());
         assert_eq!(staged.files, STAGE_MAX_FILES);
+    }
+
+    /// An app edited in place is the project folder: its staging must leave out capture/ (which
+    /// holds the original's staged sources) and the copy being made, or the build would be read
+    /// with the original's code and would copy itself.
+    #[test]
+    fn an_app_edited_in_place_is_read_without_the_projects_own_records() {
+        let d = tempfile::tempdir().unwrap();
+        let mut ws = Workspace::create(d.path(), "Notes", "Recreate this app", TargetRef::None).unwrap();
+        ws.manifest.app_in_root = true;
+        let root = ws.root.clone();
+        std::fs::write(root.join("package.json"), "{}").unwrap();
+        std::fs::write(root.join("main.js"), "1").unwrap();
+        std::fs::create_dir_all(root.join("capture/rea/source")).unwrap();
+        std::fs::write(root.join("capture/rea/source/original.js"), "1").unwrap();
+        let dest = root.join("checks/round-1/rea/source");
+        let skip = stage_skips(&ws, &root, &dest);
+        let staged = copy_own_sources(&root, &dest, &skip).unwrap();
+        assert!(dest.join("main.js").is_file() && dest.join("package.json").is_file());
+        assert!(!dest.join("capture").exists(), "the original's sources stay out");
+        assert!(!dest.join("checks").exists(), "the copy doesn't copy itself");
+        assert!(!dest.join(craft_anything_engine::workspace::MANIFEST).exists());
+        assert!(!staged.partial());
+    }
+
+    #[test]
+    fn a_root_that_cant_be_listed_is_an_error() {
+        let d = tempfile::tempdir().unwrap();
+        assert!(copy_own_sources(&d.path().join("missing"), &d.path().join("s"), &[]).is_err());
+    }
+
+    #[test]
+    fn an_api_whose_members_are_unknown_isnt_called_missing() {
+        let mut original = surface_of(&record(&[], "notes", &["copy", "search"], 0));
+        let unknown_members = surface_of(&record(&[], "notes", &[], 0));
+        assert!(surface_claims(&original, &unknown_members, &[]).iter().all(|c| c.passed), "the build's API may have them");
+        original.bridge = ["notes".to_string()].into_iter().collect();
+        let built = surface_of(&record(&[], "notes", &["copy"], 0));
+        assert!(surface_claims(&original, &built, &[]).iter().all(|c| c.passed), "the original's members weren't known");
+        let other = surface_of(&record(&[], "api", &["copy"], 0));
+        assert!(surface_claims(&original, &other, &[]).iter().any(|c| !c.passed), "another API doesn't count");
+    }
+
+    #[test]
+    fn failed_claims_come_first() {
+        let original = surface_of(&record(&["a:1", "b:2", "c:3"], "notes", &["x"], 1));
+        let built = surface_of(&record(&["a:1", "b:2"], "notes", &["x"], 1));
+        let claims = surface_claims(&original, &built, &[]);
+        assert!(!claims[0].passed && claims[1..].iter().all(|c| c.passed));
     }
 
     #[test]
