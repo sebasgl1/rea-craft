@@ -100,13 +100,24 @@ impl Worker {
             TargetRef::Local { path } => {
                 self.step(ws, Step::Study, Status::Inspecting, "Looking inside it (nothing is run)…")?;
                 let (program, folder) = locate(&path, kind.studies_folder());
+                // Which engines study it (`build.study_engines`): the built-in one, REA, or both.
+                // REA needs Deep mode and its plugin; without them the built-in engine studies.
+                let (craft, rea) = {
+                    let session = self.engine.session();
+                    let rea = kinds::rea::rea_on(&session, deep);
+                    (session.settings.build.studies_with(craft_anything_engine::settings::STUDY_CRAFT) || !rea, rea)
+                };
                 let mut notes = format!("# What we found in {}\n\n", path.display());
                 if program != path {
                     notes.push_str(&format!("{} starts {}, so that's what we looked at.\n\n", path.display(), program.display()));
                 }
-                match self.call("core_target_triage", json!({"path": program.display().to_string()})) {
-                    Ok(out) => notes.push_str(&describe(&out)),
-                    Err(e) => notes.push_str(&format!("A first look failed: {}\n", e.message)),
+                if craft {
+                    match self.call("core_target_triage", json!({"path": program.display().to_string()})) {
+                        Ok(out) => notes.push_str(&describe(&out)),
+                        Err(e) => notes.push_str(&format!("A first look failed: {}\n", e.message)),
+                    }
+                } else {
+                    notes.push_str("Studied with REA only (`build.study_engines`); the built-in engine's first look was skipped.\n");
                 }
                 if !program.is_file() && deep {
                     self.step(
@@ -154,11 +165,15 @@ impl Worker {
                 let packaged = |root: &Path| root.join("resources/app.asar").exists() || root.join("package.json").exists();
                 let js_input =
                     if path.extension().is_some_and(|e| e == "asar") || packaged(&path) { Some(path.clone()) } else { js_root.filter(|r| packaged(r)) };
-                if let Some(input) = js_input
+                if craft
+                    && let Some(input) = &js_input
                     && let Ok(out) = self.call("js_app_map", json!({"input_path": input.display().to_string(), "limit": 50}))
                 {
                     notes.push_str("\n## JavaScript application\n\n");
                     notes.push_str(&describe(&out));
+                }
+                if rea {
+                    notes.push_str(&self.study_with_rea(ws, &path, &program, js_input.as_deref())?);
                 }
                 let capture = ws.capture_dir();
                 std::fs::create_dir_all(&capture).map_err(|e| ToolError::io(capture.display(), e))?;

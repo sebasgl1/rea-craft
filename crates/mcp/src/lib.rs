@@ -560,9 +560,17 @@ impl Server {
         // Counted as tools/list shows them, so Clean room's refused tools aren't counted (#263).
         let clean = self.engine.session().clean_room();
         let visible = self.engine.registry().all().iter().filter(|s| self.listed(s, clean)).count();
-        Ok(ToolOutput::Value(
-            json!({"enabled": added, "visible_tools": visible, "note": "The tool list changed; refresh it if your client does not do so automatically."}),
-        ))
+        let mut out =
+            json!({"enabled": added, "visible_tools": visible, "note": "The tool list changed; refresh it if your client does not do so automatically."});
+        // A plugin's own instructions (its MCP handshake's), so an agent uses its tools as meant.
+        let guides: serde_json::Map<String, Value> = {
+            let session = self.engine.session();
+            added.iter().filter_map(|id| craft_anything_engine::plugins::instructions_for(&session, id).map(|g| (id.to_string(), Value::String(g)))).collect()
+        };
+        if !guides.is_empty() {
+            out["plugin_instructions"] = Value::Object(guides);
+        }
+        Ok(ToolOutput::Value(out))
     }
 
     fn call_engine(&self, name: &str, args: Value, token: &CancelToken, progress_token: Option<&Value>, seq: Arc<AtomicU64>) -> Result<ToolOutput, ToolError> {

@@ -77,6 +77,8 @@ pub struct McpClient {
     name: String,
     transport: Box<dyn Transport>,
     next_id: u64,
+    /// The server's `instructions` from its handshake: how it wants its tools used.
+    instructions: Option<String>,
 }
 
 impl McpClient {
@@ -96,7 +98,7 @@ impl McpClient {
 
     /// Complete the handshake over any transport.
     pub fn with_transport(name: &str, transport: Box<dyn Transport>, timeout: Duration) -> Result<McpClient, ToolError> {
-        let mut client = McpClient { name: name.to_string(), transport, next_id: 1 };
+        let mut client = McpClient { name: name.to_string(), transport, next_id: 1, instructions: None };
         let started = client
             .request(
                 "initialize",
@@ -104,11 +106,19 @@ impl McpClient {
                 timeout,
                 &|| false,
             )
-            .and_then(|_| client.notify("notifications/initialized", json!({})));
+            .and_then(|init| {
+                client.instructions = init.get("instructions").and_then(Value::as_str).map(str::trim).filter(|t| !t.is_empty()).map(str::to_string);
+                client.notify("notifications/initialized", json!({}))
+            });
         match started {
             Ok(()) => Ok(client),
             Err(e) => Err(client.with_output(e)),
         }
+    }
+
+    /// The server's own instructions for its tools, from the handshake (none when it sent none).
+    pub fn instructions(&self) -> Option<&str> {
+        self.instructions.as_deref()
     }
 
     /// For a server that stopped answering (`TimedOut` without details): stop it and add the end of

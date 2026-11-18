@@ -66,6 +66,13 @@ impl TargetKind for AppKind {
 
     fn checks(&self, _ws: &Workspace) -> Vec<Box<dyn Check>> {
         // The sheet is asked for only when Deep mode decompiles a program target.
-        vec![Box::new(BuildCheck), Box::new(RunsCheck), Box::new(ScreenshotCheck), Box::new(DeepOnly(MechanicsCheck))]
+        vec![
+            Box::new(BuildCheck),
+            // REA reads the build's files, so it needs only a build, not a program that starts.
+            Box::new(DeepOnly(super::rea::ReaSurfaceCheck)),
+            Box::new(RunsCheck),
+            Box::new(ScreenshotCheck),
+            Box::new(DeepOnly(MechanicsCheck)),
+        ]
     }
 }

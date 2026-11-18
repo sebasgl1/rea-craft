@@ -1,3 +1,6 @@
+> [!NOTE]
+> **REA-Craft:** this fork adds [REA](https://github.com/morluto/rea) as a second engine (study, checks and better MCP plugins). Setup and changes: [REA-CRAFT.md](REA-CRAFT.md).
+
 <p align="center">
   <a href="https://getartcraft.com/">
     <picture>

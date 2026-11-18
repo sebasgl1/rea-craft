@@ -3168,14 +3168,14 @@ impl TargetKind for LaterChecks {
 }
 
 /// The app's sheet only.
-const APP_SHEET_ONLY: LaterChecks = LaterChecks(&AppKind, 3);
+const APP_SHEET_ONLY: LaterChecks = LaterChecks(&AppKind, 4);
 
 #[test]
 fn apps_keep_the_sheet_only_when_deep_mode_decompiles_a_program() {
     let d = tempfile::tempdir().unwrap();
     let prog = Workspace::create(d.path(), "Tool", "Rebuild this app", TargetRef::Local { path: d.path().join("tool.exe") }).unwrap();
     let ids = AppKind.checks(&prog).iter().map(|c| c.id()).collect::<Vec<_>>();
-    assert_eq!(ids, ["build", "app-runs", "app-screenshot", "mechanics"]);
+    assert_eq!(ids, ["build", "rea-surface", "app-runs", "app-screenshot", "mechanics"]);
     assert!(brief(&prog, "app", true, false, None, false, None).contains(kinds::mechanics::MECHANICS_CONTRACT));
     assert!(!brief(&prog, "app", false, false, None, false, None).contains("app/mechanics.json"), "Clean room doesn't ask for it");
 

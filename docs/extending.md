@@ -53,6 +53,13 @@ the next start its tools are offered everywhere, in a toolset of their own (MCP 
   `openWorldHint`), plus launching a process (local) or the network (remote). With
   `consent = true` every call asks first.
 - `env` and `headers` values are never shown by `settings_show` or `plugins_list`.
+- `default_args = { detail = "summary" }` fills an argument a call leaves out, only for the tools whose
+  input schema declares it.
+- A text block that only repeats `structuredContent` is dropped; a result's own `confidence`,
+  `limitations` and `coverage` become the evidence's. The server's handshake `instructions` are kept
+  by `plugins_refresh` and returned (`plugin_instructions`) when an agent enables its toolset.
+- A builder on an API backend starts with every built-in toolset in Deep mode but no plugin's; it
+  enables one with `enable_toolset`.
 - Another transport implements `engines::mcp_client::Transport` and is passed to
   `McpClient::with_transport`.
 - Results are recorded as evidence from an external service (`engine: plugin:<id>`).

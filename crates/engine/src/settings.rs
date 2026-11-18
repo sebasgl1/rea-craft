@@ -159,15 +159,40 @@ pub struct BuildSettings {
     pub picture_good_enough: Option<f64>,
     /// Projects that may build at the same time; more wait their turn (at least 1).
     pub parallel: usize,
+    /// The engines that study a target before the first build, in Deep mode: `craft` (the built-in
+    /// engine) and `rea` (the REA plugin, `[[plugins.mcp]] id = "rea"`). With `rea`, REA's notes join
+    /// the study's and a JavaScript app is also compared with the original by REA after each build.
+    /// Empty or unknown names mean `craft`.
+    pub study_engines: Vec<String>,
 }
 
 impl Default for BuildSettings {
     fn default() -> Self {
-        BuildSettings { good_enough: 90.0, max_rounds: 6, web_widths: vec![1440, 768, 390], max_pages: 4, picture_good_enough: None, parallel: 2 }
+        BuildSettings {
+            good_enough: 90.0,
+            max_rounds: 6,
+            web_widths: vec![1440, 768, 390],
+            max_pages: 4,
+            picture_good_enough: None,
+            parallel: 2,
+            study_engines: vec![STUDY_CRAFT.to_string()],
+        }
     }
 }
 
+/// The built-in engine, as a name in [`BuildSettings::study_engines`].
+pub const STUDY_CRAFT: &str = "craft";
+/// The REA plugin, as a name in [`BuildSettings::study_engines`] and as its plugin id.
+pub const STUDY_REA: &str = "rea";
+
 impl BuildSettings {
+    /// Whether `engine` studies targets: one of the names listed, with `craft` standing in for an
+    /// empty or unrecognised list so a study never runs without an engine.
+    pub fn studies_with(&self, engine: &str) -> bool {
+        let known: Vec<&str> = self.study_engines.iter().map(|e| e.trim()).filter(|e| *e == STUDY_CRAFT || *e == STUDY_REA).collect();
+        if known.is_empty() { engine == STUDY_CRAFT } else { known.contains(&engine) }
+    }
+
     /// The widths to compare at: the configured ones a capture can take (320-3840 px, at most 4),
     /// else the defaults (desktop, tablet and phone).
     pub fn widths(&self) -> Vec<u32> {
@@ -634,6 +659,13 @@ fn read_waiting(path: &Path, waits: &[Duration], mut read: impl FnMut(&Path) -> 
 mod tests {
     #[test]
     fn build_settings_have_safe_widths_and_old_configs_get_defaults() {
+        let only_rea = BuildSettings { study_engines: vec!["rea".into()], ..BuildSettings::default() };
+        assert!(only_rea.studies_with(STUDY_REA) && !only_rea.studies_with(STUDY_CRAFT));
+        let both = BuildSettings { study_engines: vec!["craft".into(), " rea ".into()], ..BuildSettings::default() };
+        assert!(both.studies_with(STUDY_REA) && both.studies_with(STUDY_CRAFT));
+        let junk = BuildSettings { study_engines: vec!["ida".into()], ..BuildSettings::default() };
+        assert!(junk.studies_with(STUDY_CRAFT) && !junk.studies_with(STUDY_REA), "an unknown list falls back to craft");
+        assert!(BuildSettings::default().studies_with(STUDY_CRAFT) && !BuildSettings::default().studies_with(STUDY_REA));
         let b = BuildSettings { web_widths: vec![10, 1280, 99_999, 375, 200], ..BuildSettings::default() };
         assert_eq!(b.widths(), [1280, 375], "widths a capture can't take are dropped");
         assert_eq!(BuildSettings { web_widths: vec![], ..BuildSettings::default() }.widths(), [1440, 768, 390]);

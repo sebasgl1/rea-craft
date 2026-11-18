@@ -8,6 +8,7 @@ mod game;
 pub mod mechanics;
 pub mod own;
 pub mod plugin_check;
+pub mod rea;
 pub mod runs;
 pub mod screenshot;
 pub mod self_test;
@@ -240,6 +241,12 @@ impl CheckCx<'_> {
     /// How builds are judged (`[build]` in settings).
     pub fn build_settings(&self) -> craft_anything_engine::settings::BuildSettings {
         self.worker.engine.session().settings.build.clone()
+    }
+
+    /// REA studies and checks this run ([`rea::rea_on`]).
+    pub fn rea_on(&self) -> bool {
+        let session = self.worker.engine.session();
+        rea::rea_on(&session, !session.clean_room())
     }
 
     /// Deep mode is on (Ghidra enabled): the builder had to decompile a program target.
