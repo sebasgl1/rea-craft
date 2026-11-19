@@ -175,15 +175,27 @@ def main():
         say(f"No pude leer los ajustes de Craft Anything: {err.strip()[-400:]}")
         return 1
     text = config_path.read_text(encoding="utf-8") if config_path.is_file() else ""
-    if 'id = "rea"' in text:
-        say(f"- Plugin REA: ya estaba en {config_path}")
-    else:
-        backup = None
-        if config_path.is_file():
-            backup = config_path.with_name(f"config.toml.antes-de-rea-{time.strftime('%Y%m%d-%H%M%S')}")
-            shutil.copy2(config_path, backup)
-            say(f"- Respaldo de los ajustes: {backup}")
-        block = (
+    backup = None
+    if config_path.is_file():
+        backup = config_path.with_name(f"config.toml.antes-de-rea-{time.strftime('%Y%m%d-%H%M%S')}")
+        shutil.copy2(config_path, backup)
+        say(f"- Respaldo de los ajustes: {backup}")
+    # Craft Anything writes an empty `mcp = []` under [plugins]; a [[plugins.mcp]] table beside it
+    # defines the list twice, which TOML refuses, and Craft then runs on its defaults. Drop it
+    # every time, also when an earlier run already added REA.
+    section = None
+    kept = []
+    for line in text.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("[") and not stripped.startswith("[["):
+            section = stripped
+        if section == "[plugins]" and stripped.replace(" ", "") == "mcp=[]":
+            continue
+        kept.append(line)
+    text = "\n".join(kept) + ("\n" if kept else "")
+    already = 'id = "rea"' in text
+    if not already:
+        text += (
             "\n[[plugins.mcp]]\n"
             'id = "rea"\nname = "REA"\n'
             f"command = {toml_str(node)}\n"
@@ -193,30 +205,21 @@ def main():
             "\n[plugins.mcp.default_args]\n"
             'detail = "summary"\n'
         )
-        # Craft Anything writes an empty `mcp = []` under [plugins]; a [[plugins.mcp]] table after it
-        # would define the list twice, which TOML refuses, and Craft would load its defaults.
-        lines = text.splitlines()
-        section = None
-        kept = []
-        for line in lines:
-            stripped = line.strip()
-            if stripped.startswith("[") and not stripped.startswith("[["):
-                section = stripped
-            if section == "[plugins]" and stripped.replace(" ", "") == "mcp=[]":
-                continue
-            kept.append(line)
-        text = "\n".join(kept) + ("\n" if kept else "")
-        config_path.parent.mkdir(parents=True, exist_ok=True)
-        with open(config_path, "w", encoding="utf-8", newline="\n") as fh:
-            fh.write(text + block)
-        code, out, err = run([cli, "--format", "text", "plugins-list"])
-        if code != 0 or "rea" not in out:
-            if backup:
-                shutil.copy2(backup, config_path)
-            say(f"- No pude agregar REA a los ajustes (se restauró el respaldo): {(out + err).strip()[-800:]}")
-            return 1
-        say(f"- Plugin REA: agregado a {config_path}")
-    run([cli, "--allow-run", "plugins-refresh"], timeout=300, check=True)
+    config_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(config_path, "w", encoding="utf-8", newline="\n") as fh:
+        fh.write(text)
+    code, out, err = run([cli, "--format", "text", "plugins-list"])
+    if code != 0 or "id: rea" not in out:
+        if backup:
+            shutil.copy2(backup, config_path)
+        say(f"- No pude dejar REA en los ajustes (se restauró el respaldo): {(out + err).strip()[-800:]}")
+        return 1
+    say(f"- Plugin REA: {'ya estaba en' if already else 'agregado a'} {config_path} (ajustes válidos)")
+    code, out, err = run([cli, "--allow-run", "--format", "text", "plugins-refresh"], timeout=300)
+    if code != 0:
+        say(f"- REA no respondió al leer sus herramientas: {(out + err).strip()[-1500:]}")
+        return 1
+    say(f"- Herramientas de REA leídas: {out.strip().splitlines()[0] if out.strip() else 'ok'}")
     run([cli, "settings-set", "--key", "build.study_engines", "--value", '["craft","rea"]'], check=True)
 
     say()
