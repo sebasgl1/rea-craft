@@ -49,7 +49,8 @@ def run(cmd, timeout=600, check=False):
     except subprocess.TimeoutExpired:
         return 124, "", f"timed out after {timeout} s"
     if check and p.returncode != 0:
-        say(f"    falló: {' '.join(cmd)}\n    {p.stderr.strip()[-800:]}")
+        said = (p.stdout.strip() + "\n" + p.stderr.strip()).strip()[-1500:]
+        say(f"    falló: {' '.join(cmd)}\n    {said}")
     return p.returncode, p.stdout, p.stderr
 
 
@@ -177,6 +178,7 @@ def main():
     if 'id = "rea"' in text:
         say(f"- Plugin REA: ya estaba en {config_path}")
     else:
+        backup = None
         if config_path.is_file():
             backup = config_path.with_name(f"config.toml.antes-de-rea-{time.strftime('%Y%m%d-%H%M%S')}")
             shutil.copy2(config_path, backup)
@@ -191,9 +193,28 @@ def main():
             "\n[plugins.mcp.default_args]\n"
             'detail = "summary"\n'
         )
+        # Craft Anything writes an empty `mcp = []` under [plugins]; a [[plugins.mcp]] table after it
+        # would define the list twice, which TOML refuses, and Craft would load its defaults.
+        lines = text.splitlines()
+        section = None
+        kept = []
+        for line in lines:
+            stripped = line.strip()
+            if stripped.startswith("[") and not stripped.startswith("[["):
+                section = stripped
+            if section == "[plugins]" and stripped.replace(" ", "") == "mcp=[]":
+                continue
+            kept.append(line)
+        text = "\n".join(kept) + ("\n" if kept else "")
         config_path.parent.mkdir(parents=True, exist_ok=True)
-        with open(config_path, "a", encoding="utf-8") as fh:
-            fh.write(block)
+        with open(config_path, "w", encoding="utf-8", newline="\n") as fh:
+            fh.write(text + block)
+        code, out, err = run([cli, "--format", "text", "plugins-list"])
+        if code != 0 or "rea" not in out:
+            if backup:
+                shutil.copy2(backup, config_path)
+            say(f"- No pude agregar REA a los ajustes (se restauró el respaldo): {(out + err).strip()[-800:]}")
+            return 1
         say(f"- Plugin REA: agregado a {config_path}")
     run([cli, "--allow-run", "plugins-refresh"], timeout=300, check=True)
     run([cli, "settings-set", "--key", "build.study_engines", "--value", '["craft","rea"]'], check=True)
