@@ -141,6 +141,17 @@ impl McpPlugin {
         config.join("plugins").join(format!("{}.instructions.md", self.id))
     }
 
+    /// Where the server's name and version are kept by the last refresh.
+    pub fn server_info_path(&self, config: &std::path::Path) -> PathBuf {
+        config.join("plugins").join(format!("{}.server.json", self.id))
+    }
+
+    /// The server's name and version as the last refresh read them.
+    pub fn cached_server_info(&self, config: &std::path::Path) -> Option<craft_anything_engines::mcp_client::ServerInfo> {
+        let bytes = std::fs::read(self.server_info_path(config)).ok()?;
+        serde_json::from_slice(&bytes).ok()
+    }
+
     /// The server's instructions kept by the last refresh, if it sent any.
     pub fn cached_instructions(&self, config: &std::path::Path) -> Option<String> {
         std::fs::read_to_string(self.instructions_path(config)).ok().map(|t| t.trim().to_string()).filter(|t| !t.is_empty())
@@ -286,11 +297,11 @@ pub fn install(session: &mut Session) -> Vec<RuntimeTool> {
 }
 
 /// Start a server, list its tools and cache them. New tools are offered from the next start.
-pub fn refresh(p: &McpPlugin, config: &std::path::Path) -> Result<Vec<RemoteTool>, ToolError> {
+pub fn refresh(p: &McpPlugin, settings: &crate::settings::Settings, config: &std::path::Path) -> Result<Vec<RemoteTool>, ToolError> {
     if let Some(problem) = p.problem() {
         return Err(ToolError::invalid(problem).with_remediation("Fix it in config.toml ([[plugins.mcp]])."));
     }
-    let mut client = start(p, config)?;
+    let mut client = start(p, settings, config)?;
     let tools = client.list_tools(START_TIMEOUT).map_err(|e| logged(p, config, client.with_output(e)))?;
     let path = p.cache_path(config);
     if let Some(dir) = path.parent() {
@@ -298,6 +309,13 @@ pub fn refresh(p: &McpPlugin, config: &std::path::Path) -> Result<Vec<RemoteTool
     }
     let json = serde_json::to_vec_pretty(&tools).map_err(|e| ToolError::internal(e.to_string()))?;
     crate::project::write_atomic(&path, &json)?;
+    let info = p.server_info_path(config);
+    match client.server_info() {
+        Some(i) => crate::project::write_atomic(&info, &serde_json::to_vec_pretty(i).unwrap_or_default())?,
+        None => {
+            let _ = std::fs::remove_file(&info);
+        }
+    }
     let guide = p.instructions_path(config);
     match client.instructions() {
         Some(text) => crate::project::write_atomic(&guide, text.as_bytes())?,
@@ -453,14 +471,32 @@ pub fn health_of(session: &Session, start: bool) -> Vec<PluginHealth> {
             ));
             continue;
         }
+        let version_note =
+            |version: &str| untested_version(id, version).map(|note| health(id, HealthLevel::Warn, format!("The {} plugin's {note}", p.display_name()), None));
         if !start || p.consent {
             // A plugin that asks before each call isn't run without asking, not even by doctor.
             let why = if p.consent { "not started: it asks before running" } else { "not started" };
             out.push(health(id, HealthLevel::Ok, format!("The {} plugin offers {cached} tools ({why}).", p.display_name()), None));
+            if let Some(note) = p.cached_server_info(&config).and_then(|i| version_note(&i.version)) {
+                out.push(note);
+            }
             continue;
         }
         let began = std::time::Instant::now();
-        let answered = McpClient::connect(p.display_name(), &p.server(), HEALTH_TIMEOUT).and_then(|mut c| c.list_tools(HEALTH_TIMEOUT));
+        let shared = with_shared_engines(p, &session.settings);
+        if let Some(home) = shared.env.get("GHIDRA_INSTALL_DIR").filter(|_| !p.env.contains_key("GHIDRA_INSTALL_DIR")) {
+            out.push(health(id, HealthLevel::Info, format!("The {} plugin is given Craft Anything's Ghidra ({home}).", p.display_name()), None));
+        }
+        let answered = McpClient::connect(p.display_name(), &shared.server(), HEALTH_TIMEOUT).and_then(|mut c| {
+            let version = c.server_info().map(|i| i.version.clone()).unwrap_or_default();
+            c.list_tools(HEALTH_TIMEOUT).map(|t| (t, version))
+        });
+        if let Ok((_, version)) = &answered
+            && let Some(note) = version_note(version)
+        {
+            out.push(note);
+        }
+        let answered = answered.map(|(t, _)| t);
         match answered {
             Ok(tools) if tools.len() == cached => out.push(health(
                 id,
@@ -506,9 +542,65 @@ pub fn health_of(session: &Session, start: bool) -> Vec<PluginHealth> {
     out
 }
 
+/// The engines Craft Anything has that a local plugin can use too, as environment variables the
+/// plugin's own settings, and this process, leave unset: Ghidra's folder (`GHIDRA_INSTALL_DIR`)
+/// and the Java it runs on (`JAVA_HOME`). REA, for one, decompiles with a Ghidra named that way, so
+/// the Ghidra Craft Anything installed serves both.
+pub fn shared_engine_env(p: &McpPlugin, settings: &crate::settings::Settings) -> BTreeMap<String, String> {
+    let mut env = BTreeMap::new();
+    if p.remote_url().is_some() {
+        return env;
+    }
+    let unset = |key: &str| !p.env.contains_key(key) && std::env::var_os(key).is_none();
+    if unset("GHIDRA_INSTALL_DIR") {
+        // The launcher is <ghidra>/support/analyzeHeadless; only a real Ghidra folder is named.
+        let home = settings.ghidra_launcher().and_then(|l| {
+            let support = l.parent()?;
+            let root = support.parent()?;
+            (support.file_name().is_some_and(|n| n == "support") && root.join("Ghidra").is_dir()).then(|| root.to_path_buf())
+        });
+        if let Some(home) = home {
+            env.insert("GHIDRA_INSTALL_DIR".to_string(), home.display().to_string());
+        }
+    }
+    if unset("JAVA_HOME")
+        && let Some(java) = settings.ghidra_java()
+    {
+        env.insert("JAVA_HOME".to_string(), java.display().to_string());
+    }
+    env
+}
+
+/// The plugin with [`shared_engine_env`] added to its environment.
+fn with_shared_engines(p: &McpPlugin, settings: &crate::settings::Settings) -> McpPlugin {
+    let mut p = p.clone();
+    for (k, v) in shared_engine_env(&p, settings) {
+        p.env.entry(k).or_insert(v);
+    }
+    p
+}
+
 /// Start a plugin's server and complete the handshake, keeping a failure log when it fails.
-fn start(p: &McpPlugin, config: &std::path::Path) -> Result<McpClient, ToolError> {
-    McpClient::connect(p.display_name(), &p.server(), START_TIMEOUT).map_err(|e| logged(p, config, e))
+fn start(p: &McpPlugin, settings: &crate::settings::Settings, config: &std::path::Path) -> Result<McpClient, ToolError> {
+    let p = with_shared_engines(p, settings);
+    McpClient::connect(p.display_name(), &p.server(), START_TIMEOUT).map_err(|e| logged(&p, config, e))
+}
+
+/// Plugin versions this build was tested with, by plugin id: a record whose shape the code reads
+/// (REA's application graph, for the rea-surface check) may differ in another version.
+pub const TESTED_VERSIONS: &[(&str, &[&str])] = &[(crate::settings::STUDY_REA, &["6.9.0"])];
+
+/// A note when a plugin's version isn't one this build was tested with (none when it is, or when
+/// nothing was tested for that plugin).
+pub fn untested_version(id: &str, version: &str) -> Option<String> {
+    let (_, tested) = TESTED_VERSIONS.iter().find(|(p, _)| *p == id)?;
+    (!tested.contains(&version)).then(|| {
+        format!(
+            "version {version} hasn't been tested with this build (tested: {}); its records may read differently. If its study notes or checks look wrong, install a tested version (`npm install --global rea-agents@{}`).",
+            tested.join(", "),
+            tested.last().copied().unwrap_or_default()
+        )
+    })
 }
 
 /// A local server that didn't start or answer: write what ran and what it printed to a failure
@@ -554,7 +646,7 @@ fn call_plugin(ctx: &mut Ctx<'_>, params: Value) -> Result<ToolOutput, ToolError
     let mut slot = client.lock().unwrap_or_else(PoisonError::into_inner);
     if slot.is_none() {
         ctx.report(None, format!("Starting the {} plugin…", plugin.display_name()));
-        *slot = Some(start(plugin, &ctx.session.config_dir())?);
+        *slot = Some(start(plugin, &ctx.session.settings, &ctx.session.config_dir())?);
     }
     let Some(c) = slot.as_mut() else { return Err(ToolError::internal("plugin client missing")) };
     let cancel = ctx.cancel.clone();
@@ -652,7 +744,7 @@ mod tests {
         let (command, args) = ("sh", vec!["-c".to_string(), "echo bad token in notes.cfg >&2; exit 3".to_string()]);
         let config = tempfile::tempdir().unwrap();
         let p = McpPlugin { args, env: BTreeMap::from([("NOTES_KEY".to_string(), "sk-test-secret".to_string())]), ..plugin(command) };
-        let e = refresh(&p, config.path()).unwrap_err();
+        let e = refresh(&p, &crate::testing::session().settings, config.path()).unwrap_err();
         assert!(e.message.contains("exited with exit code 3"), "{e:?}");
         let said = e.remediation.unwrap_or_default();
         assert!(said.contains("bad token in notes.cfg") && said.contains("plugins.mcp"), "{said}");
@@ -670,14 +762,14 @@ mod tests {
     fn a_plugin_that_cant_start_names_its_log_and_a_remote_one_writes_none() {
         let config = tempfile::tempdir().unwrap();
         let args = vec!["--url".to_string(), "https://mcp.example.test/mcp?token=plainsecretvalue42".to_string()];
-        let e = refresh(&McpPlugin { args, ..plugin("craft-anything-no-such-plugin-server") }, config.path()).unwrap_err();
+        let e = refresh(&McpPlugin { args, ..plugin("craft-anything-no-such-plugin-server") }, &crate::testing::session().settings, config.path()).unwrap_err();
         assert!(e.remediation.unwrap_or_default().contains("The details are in"), "a missing program is logged too");
         let logs: Vec<_> = std::fs::read_dir(crate::failure_log::dir_in(config.path())).unwrap().flatten().map(|f| f.path()).collect();
         let log = std::fs::read_to_string(&logs[0]).unwrap();
         assert!(log.contains("mcp.example.test/mcp?token=") && !log.contains("plainsecretvalue42"), "a key in an argument is hidden: {log}");
         let remote = McpPlugin { url: Some("http://127.0.0.1:0/mcp".into()), ..plugin("") };
         let other = tempfile::tempdir().unwrap();
-        assert!(refresh(&remote, other.path()).is_err());
+        assert!(refresh(&remote, &crate::testing::session().settings, other.path()).is_err());
         assert!(!crate::failure_log::dir_in(other.path()).exists(), "no log for a remote server");
     }
 
@@ -748,6 +840,41 @@ mod tests {
         assert_eq!(asks.level, HealthLevel::Ok);
         assert!(asks.message.contains("not started: it asks before running"), "{}", asks.message);
         assert_eq!(h.iter().filter(|x| x.id == "rea").count(), 1, "a name listed twice is said once");
+    }
+
+    #[test]
+    fn a_plugin_gets_craft_anythings_ghidra_and_java_unless_it_names_its_own() {
+        let mut s = crate::testing::session();
+        let ghidra = tempfile::tempdir().unwrap();
+        let root = ghidra.path().join("ghidra_12.1_PUBLIC");
+        std::fs::create_dir_all(root.join("support")).unwrap();
+        std::fs::create_dir_all(root.join("Ghidra")).unwrap();
+        std::fs::write(root.join("support").join(if cfg!(windows) { "analyzeHeadless.bat" } else { "analyzeHeadless" }), "x").unwrap();
+        let java = tempfile::tempdir().unwrap();
+        std::fs::create_dir_all(java.path().join("bin")).unwrap();
+        std::fs::write(java.path().join("bin").join(if cfg!(windows) { "java.exe" } else { "java" }), "x").unwrap();
+        s.settings.engines.ghidra.install_dir = Some(root.clone());
+        s.settings.engines.ghidra.java_home = Some(java.path().to_path_buf());
+        let p = plugin("rea");
+        let env = shared_engine_env(&p, &s.settings);
+        if std::env::var_os("GHIDRA_INSTALL_DIR").is_none() {
+            assert_eq!(env.get("GHIDRA_INSTALL_DIR").map(PathBuf::from), Some(root.clone()));
+        }
+        let own = McpPlugin { env: BTreeMap::from([("GHIDRA_INSTALL_DIR".to_string(), "/mine".to_string())]), ..plugin("rea") };
+        assert!(!shared_engine_env(&own, &s.settings).contains_key("GHIDRA_INSTALL_DIR"), "the plugin's own setting wins");
+        assert_eq!(with_shared_engines(&own, &s.settings).env.get("GHIDRA_INSTALL_DIR").map(String::as_str), Some("/mine"));
+        let remote = McpPlugin { command: String::new(), url: Some("https://example.test/mcp".into()), ..plugin("x") };
+        assert!(shared_engine_env(&remote, &s.settings).is_empty(), "a remote server gets nothing");
+        s.settings.engines.ghidra.install_dir = Some(ghidra.path().join("not-ghidra"));
+        assert!(!shared_engine_env(&p, &s.settings).contains_key("GHIDRA_INSTALL_DIR"), "no Ghidra, no folder");
+    }
+
+    #[test]
+    fn an_untested_plugin_version_is_named() {
+        assert!(untested_version("rea", "6.9.0").is_none());
+        let note = untested_version("rea", "7.0.0").unwrap();
+        assert!(note.contains("7.0.0") && note.contains("6.9.0"), "{note}");
+        assert!(untested_version("other", "1.0.0").is_none(), "nothing was tested for it");
     }
 
     #[test]

@@ -79,6 +79,17 @@ pub struct McpClient {
     next_id: u64,
     /// The server's `instructions` from its handshake: how it wants its tools used.
     instructions: Option<String>,
+    /// The server's `serverInfo` from its handshake: its own name and version.
+    server_info: Option<ServerInfo>,
+}
+
+/// A server's name and version, as its handshake gives them (MCP's `serverInfo`).
+#[derive(Debug, Clone, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct ServerInfo {
+    #[serde(default)]
+    pub name: String,
+    #[serde(default)]
+    pub version: String,
 }
 
 impl McpClient {
@@ -98,7 +109,7 @@ impl McpClient {
 
     /// Complete the handshake over any transport.
     pub fn with_transport(name: &str, transport: Box<dyn Transport>, timeout: Duration) -> Result<McpClient, ToolError> {
-        let mut client = McpClient { name: name.to_string(), transport, next_id: 1, instructions: None };
+        let mut client = McpClient { name: name.to_string(), transport, next_id: 1, instructions: None, server_info: None };
         let started = client
             .request(
                 "initialize",
@@ -108,6 +119,7 @@ impl McpClient {
             )
             .and_then(|init| {
                 client.instructions = init.get("instructions").and_then(Value::as_str).map(str::trim).filter(|t| !t.is_empty()).map(str::to_string);
+                client.server_info = init.get("serverInfo").and_then(|i| serde_json::from_value::<ServerInfo>(i.clone()).ok());
                 client.notify("notifications/initialized", json!({}))
             });
         match started {
@@ -119,6 +131,11 @@ impl McpClient {
     /// The server's own instructions for its tools, from the handshake (none when it sent none).
     pub fn instructions(&self) -> Option<&str> {
         self.instructions.as_deref()
+    }
+
+    /// The server's name and version, from the handshake (none when it sent none).
+    pub fn server_info(&self) -> Option<&ServerInfo> {
+        self.server_info.as_ref()
     }
 
     /// For a server that stopped answering (`TimedOut` without details): stop it and add the end of

@@ -355,7 +355,7 @@ fn plugins_refresh(ctx: &mut Ctx<'_>, params: Value) -> Result<ToolOutput, ToolE
     let mut out = Vec::new();
     for plugin in chosen {
         ctx.report(None, format!("Reading the {} plugin's tools…", plugin.display_name()));
-        let r = match crate::plugins::refresh(&plugin, &config) {
+        let r = match crate::plugins::refresh(&plugin, &ctx.session.settings, &config) {
             Ok(tools) => json!({"id": plugin.id, "tools": tools.iter().map(|t| t.name.clone()).collect::<Vec<_>>()}),
             Err(e) => json!({"id": plugin.id, "error": e.message, "remediation": e.remediation}),
         };

@@ -66,7 +66,8 @@ Solo REA).
    command = "node"
    args = ["<carpeta global de npm>/node_modules/rea-agents/scripts/rea.mjs", "mcp"]
    consent = false            # una construcción no corre herramientas que piden permiso
-   # env = { GHIDRA_INSTALL_DIR = "<Ghidra 12.1+>" }   # para que REA descompile con Ghidra
+   # El Ghidra (y su Java) de Craft Anything se le pasan a REA solos; para otro, ponlo aquí:
+   # env = { GHIDRA_INSTALL_DIR = "<Ghidra 12.1+>" }
 
    # Estas herramientas de REA corren programas, depuradores o cambian un celular: siempre
    # preguntan, y una construcción no las usa. Las que REA marca como destructivas también preguntan.
@@ -90,7 +91,10 @@ Solo REA).
 - Para sitios web, el estudio sigue siendo el de Craft: las herramientas web de REA necesitan una
   conexión CDP a un navegador. El constructor igual puede usar REA con `enable_toolset`.
 - REA no descompila binarios sin un motor externo (Ghidra, Hopper, IDA o Kuna); Craft sí, con el
-  suyo. El Ghidra que instala Craft se le puede pasar a REA con `GHIDRA_INSTALL_DIR`.
+  suyo. Si Craft tiene Ghidra (Settings → Engines, o `engines-install`), se le pasa a REA solo
+  (`GHIDRA_INSTALL_DIR` y `JAVA_HOME`), salvo que el plugin ya nombre otro.
+- Esta versión se probó con REA 6.9.0. `doctor` avisa si tienes otra versión, porque la verificación
+  `rea-surface` lee el formato de sus resultados.
 - La verificación `rea-surface` exige los mismos nombres de canales y APIs que el original, salvo
   los que el constructor declare en `app/rea-surface-waivers.json`.
 - Si la app tiene más de 5.000 archivos fuente propios (o 64 MB), REA lee solo una parte y lo que no

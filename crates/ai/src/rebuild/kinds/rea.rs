@@ -755,6 +755,28 @@ mod tests {
         assert_eq!(js_root(&d.path().join("x.asar")), d.path().join("x.asar"));
     }
 
+    /// REA 6.9.0's own record for the sample notes app (trimmed to the surface nodes): if a REA
+    /// version changes how it writes channels, APIs or windows, this is where it shows.
+    #[test]
+    fn a_real_rea_record_gives_the_notes_apps_surface() {
+        let rec: Value = serde_json::from_str(include_str!("testdata/rea-6.9.0-notes-app.json")).unwrap();
+        let s = surface_of(&rec);
+        assert_eq!(s.channels.iter().map(String::as_str).collect::<Vec<_>>(), ["notes:copy", "notes:search"]);
+        assert_eq!(s.bridge.iter().map(String::as_str).collect::<Vec<_>>(), ["notes.copy", "notes.search"]);
+        assert_eq!((s.windows, s.unnamed), (1, 0));
+    }
+
+    /// REA 6.9.0 on `const ch = 'notes:' + 'search'; ipcMain.handle(ch, …)`: the main side is dynamic,
+    /// the preload's invoke is a literal.
+    #[test]
+    fn a_real_rea_record_with_a_computed_channel_counts_it() {
+        let rec: Value = serde_json::from_str(include_str!("testdata/rea-6.9.0-computed-channel.json")).unwrap();
+        let s = surface_of(&rec);
+        assert_eq!(s.channels.iter().map(String::as_str).collect::<Vec<_>>(), ["notes:copy", "notes:search"]);
+        assert_eq!(s.unnamed, 1);
+        assert!(!s.channels.contains("ch"));
+    }
+
     #[test]
     fn notes_keep_the_summary_and_limitations() {
         let rec = json!({"limitations": ["only static facts"], "normalized_result": {"summary": {"browser_windows": 1}, "statistics": {"relevant_files": 5}, "graph": {"nodes": []}}});
