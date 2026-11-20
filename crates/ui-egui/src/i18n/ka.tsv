@@ -1504,3 +1504,12 @@ In Deep mode, which engine studies the original: the built-in one, REA as well, 
 Built-in	ჩაშენებული
 Built-in + REA	ჩაშენებული + REA
 REA only	მხოლოდ REA
+Move the engines folder	ძრავების საქაღალდის გადატანა
+Engines folder	ძრავების საქაღალდე
+Where Craft Anything keeps the engines it downloads (Ghidra and its Java, Godot, adb…) and Ghidra's analysis cache. Moving it moves what's there.	სად ინახავს Craft Anything ჩამოტვირთულ ძრავებს (Ghidra და მისი Java, Godot, adb…) და Ghidra-ს ანალიზის ქეშს. შეცვლისას შიგთავსიც გადაიტანება.
+Move…	გადატანა…
+Where should the engines go?	სად გადავიტანო ძრავები?
+Moving the engines	ძრავების გადატანა
+Wait for the engine download to finish, then move the folder.	დაელოდე ძრავის ჩამოტვირთვის დასრულებას და შემდეგ გადაიტანე საქაღალდე.
+The engines moved. {why}	ძრავები გადაიტანა. {why}
+The engines moved to their new folder.	ძრავები ახალ საქაღალდეშია.

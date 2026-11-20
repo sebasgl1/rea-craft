@@ -1504,3 +1504,12 @@ In Deep mode, which engine studies the original: the built-in one, REA as well, 
 Built-in	ในตัว
 Built-in + REA	ในตัว + REA
 REA only	REA อย่างเดียว
+Move the engines folder	ย้ายโฟลเดอร์เอนจิน
+Engines folder	โฟลเดอร์เอนจิน
+Where Craft Anything keeps the engines it downloads (Ghidra and its Java, Godot, adb…) and Ghidra's analysis cache. Moving it moves what's there.	ที่ที่ Craft Anything เก็บเอนจินที่ดาวน์โหลด (Ghidra กับ Java ของมัน, Godot, adb…) และแคชการวิเคราะห์ของ Ghidra การเปลี่ยนจะย้ายสิ่งที่อยู่ข้างในไปด้วย
+Move…	ย้าย…
+Where should the engines go?	จะย้ายเอนจินไปที่ไหน?
+Moving the engines	กำลังย้ายเอนจิน
+Wait for the engine download to finish, then move the folder.	รอให้ดาวน์โหลดเอนจินเสร็จก่อน แล้วค่อยย้ายโฟลเดอร์
+The engines moved. {why}	ย้ายเอนจินแล้ว {why}
+The engines moved to their new folder.	ย้ายเอนจินไปโฟลเดอร์ใหม่แล้ว

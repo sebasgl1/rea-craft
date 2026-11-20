@@ -86,6 +86,8 @@ const ACTIONS: &[Action] = &[
     a("refresh_game_engines","which game engines are on this computer",        Tool(&["engines_list"])),
     a("get_engine",          "download or install a game engine",              Tool(&["engines_install"])),
     a("get_ghidra",          "download Ghidra for Deep mode",                  Tool(&["engines_install"])),
+    a("move_engines",        "move the engines folder (Ghidra, Java…) to another drive", Tool(&["engines_store_move"])),
+    a("engines_moved",       "use the engines folder a move left",              Tool(&["engines_store_move"])),
     a("detect_game_engine",  "find the engine the original game was made with", Cli("rebuild <target> <request>")),
     a("set_deep",            "Clean room or Deep mode (Ghidra)",               Tool(&["settings_set"])),
     a("check_asset_keys",    "which asset providers have a key set up",        Tool(&["assets_key_status"])),

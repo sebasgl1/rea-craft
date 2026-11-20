@@ -1504,3 +1504,12 @@ In Deep mode, which engine studies the original: the built-in one, REA as well, 
 Built-in	Có sẵn
 Built-in + REA	Có sẵn + REA
 REA only	Chỉ REA
+Move the engines folder	Chuyển thư mục engine
+Engines folder	Thư mục engine
+Where Craft Anything keeps the engines it downloads (Ghidra and its Java, Godot, adb…) and Ghidra's analysis cache. Moving it moves what's there.	Nơi Craft Anything giữ các engine đã tải (Ghidra và Java của nó, Godot, adb…) cùng bộ nhớ đệm phân tích của Ghidra. Đổi thư mục sẽ chuyển cả nội dung.
+Move…	Chuyển…
+Where should the engines go?	Chuyển engine đến đâu?
+Moving the engines	Đang chuyển engine
+Wait for the engine download to finish, then move the folder.	Chờ tải engine xong rồi hãy chuyển thư mục.
+The engines moved. {why}	Đã chuyển engine. {why}
+The engines moved to their new folder.	Engine đã ở thư mục mới.

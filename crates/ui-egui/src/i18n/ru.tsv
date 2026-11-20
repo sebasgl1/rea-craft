@@ -1504,3 +1504,12 @@ In Deep mode, which engine studies the original: the built-in one, REA as well, 
 Built-in	Встроенный
 Built-in + REA	Встроенный + REA
 REA only	Только REA
+Move the engines folder	Переместить папку движков
+Engines folder	Папка движков
+Where Craft Anything keeps the engines it downloads (Ghidra and its Java, Godot, adb…) and Ghidra's analysis cache. Moving it moves what's there.	Где Craft Anything хранит скачанные движки (Ghidra с её Java, Godot, adb…) и кэш анализа Ghidra. При смене папки содержимое переносится.
+Move…	Переместить…
+Where should the engines go?	Куда переместить движки?
+Moving the engines	Перемещаю движки
+Wait for the engine download to finish, then move the folder.	Дождитесь окончания загрузки движка, затем переместите папку.
+The engines moved. {why}	Движки перемещены. {why}
+The engines moved to their new folder.	Движки в новой папке.

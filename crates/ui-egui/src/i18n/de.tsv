@@ -1504,3 +1504,12 @@ In Deep mode, which engine studies the original: the built-in one, REA as well, 
 Built-in	Eingebaut
 Built-in + REA	Eingebaut + REA
 REA only	Nur REA
+Move the engines folder	Engine-Ordner verschieben
+Engines folder	Engine-Ordner
+Where Craft Anything keeps the engines it downloads (Ghidra and its Java, Godot, adb…) and Ghidra's analysis cache. Moving it moves what's there.	Wo Craft Anything die heruntergeladenen Engines (Ghidra mit Java, Godot, adb…) und Ghidras Analyse-Cache aufbewahrt. Beim Ändern wird der Inhalt mit verschoben.
+Move…	Verschieben…
+Where should the engines go?	Wohin sollen die Engines?
+Moving the engines	Engines werden verschoben
+Wait for the engine download to finish, then move the folder.	Warte, bis der Engine-Download fertig ist, und verschiebe dann den Ordner.
+The engines moved. {why}	Die Engines wurden verschoben. {why}
+The engines moved to their new folder.	Die Engines liegen jetzt im neuen Ordner.

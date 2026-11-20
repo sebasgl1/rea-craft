@@ -39,6 +39,12 @@ recrear (Estudiar → Construir → Verificar → Refinar) lo use bien.
    - Si la copia hace algo distinto a propósito, el constructor lo declara en
      `app/rea-surface-waivers.json` (`{"version": 1, "waivers": [{"part": "IPC channel x", "reason": "…"}]}`)
      y esa parte deja de fallar. Sin razón no cuenta.
+4. **Carpeta de motores movible**: Settings → Engines → **Carpeta de motores** → **Mover…** lleva
+   Ghidra, su Java, los demás motores y la caché de análisis de Ghidra a otra carpeta o disco (por
+   ejemplo uno que no te importe desgastar), y se usa desde entonces. En el mismo disco se renombra;
+   entre discos se copia, se guarda el ajuste y se borra la carpeta vieja. Desde la CLI:
+   `craft-anything-cli engines-store-move --to "E:\Craft Anything\engines"`. Los proyectos (lo que
+   más escribe) se cambian en Settings → General → *Los proyectos nuevos van en*.
 
 ## Prueba rápida en tu PC
 

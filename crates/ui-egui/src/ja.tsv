@@ -959,3 +959,12 @@ In Deep mode, which engine studies the original: the built-in one, REA as well, 
 Built-in	内蔵
 Built-in + REA	内蔵 + REA
 REA only	REA だけ
+Move the engines folder	エンジンのフォルダーを移動
+Engines folder	エンジンのフォルダー
+Where Craft Anything keeps the engines it downloads (Ghidra and its Java, Godot, adb…) and Ghidra's analysis cache. Moving it moves what's there.	Craft Anything がダウンロードしたエンジン（Ghidra とその Java、Godot、adb…）と Ghidra の解析キャッシュの保存場所です。変更すると中身も移動します。
+Move…	移動…
+Where should the engines go?	エンジンをどこに移動しますか？
+Moving the engines	エンジンを移動中
+Wait for the engine download to finish, then move the folder.	エンジンのダウンロードが終わってからフォルダーを移動してください。
+The engines moved. {why}	エンジンを移動しました。{why}
+The engines moved to their new folder.	エンジンを新しいフォルダーに移動しました。

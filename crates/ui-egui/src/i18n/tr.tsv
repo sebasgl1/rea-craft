@@ -1504,3 +1504,12 @@ In Deep mode, which engine studies the original: the built-in one, REA as well, 
 Built-in	Yerleşik
 Built-in + REA	Yerleşik + REA
 REA only	Yalnızca REA
+Move the engines folder	Motor klasörünü taşı
+Engines folder	Motor klasörü
+Where Craft Anything keeps the engines it downloads (Ghidra and its Java, Godot, adb…) and Ghidra's analysis cache. Moving it moves what's there.	Craft Anything'in indirdiği motorları (Ghidra ve Java'sı, Godot, adb…) ve Ghidra'nın analiz önbelleğini tuttuğu yer. Değiştirmek içindekileri de taşır.
+Move…	Taşı…
+Where should the engines go?	Motorlar nereye taşınsın?
+Moving the engines	Motorlar taşınıyor
+Wait for the engine download to finish, then move the folder.	Motor indirmesinin bitmesini bekle, sonra klasörü taşı.
+The engines moved. {why}	Motorlar taşındı. {why}
+The engines moved to their new folder.	Motorlar yeni klasörlerinde.

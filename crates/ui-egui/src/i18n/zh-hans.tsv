@@ -1504,3 +1504,12 @@ In Deep mode, which engine studies the original: the built-in one, REA as well, 
 Built-in	内置
 Built-in + REA	内置 + REA
 REA only	仅 REA
+Move the engines folder	移动引擎文件夹
+Engines folder	引擎文件夹
+Where Craft Anything keeps the engines it downloads (Ghidra and its Java, Godot, adb…) and Ghidra's analysis cache. Moving it moves what's there.	Craft Anything 存放所下载引擎（Ghidra 及其 Java、Godot、adb…）和 Ghidra 分析缓存的位置。更改时会一并移动其中内容。
+Move…	移动…
+Where should the engines go?	要把引擎移到哪里？
+Moving the engines	正在移动引擎
+Wait for the engine download to finish, then move the folder.	请等引擎下载完成后再移动文件夹。
+The engines moved. {why}	引擎已移动。{why}
+The engines moved to their new folder.	引擎已移到新文件夹。

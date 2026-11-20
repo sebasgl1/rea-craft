@@ -1504,3 +1504,12 @@ In Deep mode, which engine studies the original: the built-in one, REA as well, 
 Built-in	Vestavěný
 Built-in + REA	Vestavěný + REA
 REA only	Jen REA
+Move the engines folder	Přesunout složku enginů
+Engines folder	Složka enginů
+Where Craft Anything keeps the engines it downloads (Ghidra and its Java, Godot, adb…) and Ghidra's analysis cache. Moving it moves what's there.	Kde Craft Anything uchovává stažené enginy (Ghidru a její Javu, Godot, adb…) a mezipaměť analýz Ghidry. Změnou se přesune i obsah.
+Move…	Přesunout…
+Where should the engines go?	Kam přesunout enginy?
+Moving the engines	Přesouvám enginy
+Wait for the engine download to finish, then move the folder.	Počkej, až se engine stáhne, a pak složku přesuň.
+The engines moved. {why}	Enginy jsou přesunuté. {why}
+The engines moved to their new folder.	Enginy jsou v nové složce.

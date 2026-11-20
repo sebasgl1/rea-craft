@@ -36,6 +36,17 @@ pub fn specs() -> Vec<ToolSpec> {
             run: engines_install,
         },
         ToolSpec {
+            id: "engines_store_move",
+            title: "Move the engines folder",
+            summary: "Move Craft Anything's engines folder (Ghidra and its Java, Godot, adb and the other installed engines, and Ghidra's analysis cache) to another folder, for example on another drive, and use it from then on. The new folder must be empty or not exist yet. On the same drive the folder is renamed; across drives it is copied, the setting saved, then the old folder removed (anything that can't be removed is named, and can be deleted by hand). A copy that fails or is stopped is removed and nothing changes. Don't run it while a Deep-mode study or a build is running.",
+            beginner: "Moves the programs Craft Anything downloaded, such as Ghidra, to another folder or drive.",
+            toolset: Toolset::Setup,
+            effects: Effects::WRITES_FILESYSTEM.union(Effects::MUTATES_SESSION),
+            requires: Requires::Nothing,
+            input_schema: schema_of::<StoreMoveParams>,
+            run: engines_store_move,
+        },
+        ToolSpec {
             id: "settings_show",
             title: "Show settings",
             summary: "The current settings as JSON (mode, Auto mode, Deep mode/Ghidra, engine paths, projects folder, asset budget and picture model, AI backends). API keys are never in settings.",
@@ -377,6 +388,158 @@ pub struct InstallParams {
 
 #[derive(Debug, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
+pub struct StoreMoveParams {
+    /// The new engines folder: empty, or not there yet (it is created).
+    pub to: String,
+}
+
+/// Most files and folders a move copies; Ghidra with its Java is about 30,000.
+const MOVE_ENTRIES: u64 = 2_000_000;
+/// Deepest folder a move copies.
+const MOVE_DEPTH: usize = 64;
+
+/// How the engines folder got to its new place.
+enum Moved {
+    /// There was nothing to move: only the setting changed.
+    Nothing,
+    /// Renamed in place (the same drive).
+    Renamed,
+    /// Copied across drives.
+    Copied { files: u64, bytes: u64 },
+}
+
+fn engines_store_move(ctx: &mut Ctx<'_>, params: Value) -> Result<ToolOutput, ToolError> {
+    let p: StoreMoveParams = parse_params(params)?;
+    if p.to.trim().is_empty() {
+        return Err(ToolError::invalid("Say which folder the engines should move to."));
+    }
+    let from = ctx.session.settings.engine_store_dir();
+    let to = std::path::absolute(p.to.trim()).map_err(|e| ToolError::io(p.to.trim(), e))?;
+    if to == from {
+        return Err(ToolError::invalid(format!("The engines folder is already {}.", to.display())));
+    }
+    if to.starts_with(&from) || from.starts_with(&to) {
+        return Err(ToolError::invalid(format!(
+            "The engines folder can't move into itself or into a folder that holds it ({} and {}).",
+            from.display(),
+            to.display()
+        ))
+        .with_remediation("Pick a folder beside it, for example on another drive."));
+    }
+    match std::fs::read_dir(&to) {
+        Ok(mut entries) => {
+            if entries.next().is_some() {
+                return Err(ToolError::invalid(format!("{} isn't empty.", to.display())).with_remediation("Pick an empty folder, or a new one."));
+            }
+        }
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+        Err(e) => return Err(ToolError::io(to.display(), e)),
+    }
+    let moved = match std::fs::symlink_metadata(&from) {
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Moved::Nothing,
+        Err(e) => return Err(ToolError::io(from.display(), e)),
+        Ok(_) => move_store(ctx, &from, &to)?,
+    };
+    let mut next = ctx.session.settings.clone();
+    next.engines.store_dir = Some(to.clone());
+    let path = ctx.session.config_dir().join("config.toml");
+    if let Err(e) = next.save_to(&path) {
+        // The setting still names the old folder: put the engines back where it looks.
+        let back = match moved {
+            Moved::Nothing => Ok(()),
+            Moved::Renamed => std::fs::rename(&to, &from).map_err(|e| e.to_string()),
+            Moved::Copied { .. } => std::fs::remove_dir_all(&to).map_err(|e| e.to_string()),
+        };
+        let undone = back.map_or_else(|why| format!(" The engines are now in {} ({why}).", to.display()), |()| String::new());
+        return Err(ToolError::new(e.code, format!("{}{undone}", e.message)).with_remediation(e.remediation.unwrap_or_default()));
+    }
+    ctx.session.settings = next;
+    let (how, files, bytes, left) = match moved {
+        Moved::Nothing => ("nothing to move", 0, 0, None),
+        Moved::Renamed => ("renamed", 0, 0, None),
+        Moved::Copied { files, bytes } => {
+            ("copied", files, bytes, std::fs::remove_dir_all(&from).err().map(|e| format!("{} couldn't be removed ({e}); delete it by hand.", from.display())))
+        }
+    };
+    Ok(ToolOutput::Value(json!({
+        "from": from.display().to_string(),
+        "to": to.display().to_string(),
+        "how": how,
+        "files": files,
+        "bytes": bytes,
+        "old_folder_left": left,
+        "path": path.display().to_string(),
+    })))
+}
+
+/// Rename `from` to `to`, or, across drives, copy it there. A copy that fails is removed.
+fn move_store(ctx: &Ctx<'_>, from: &std::path::Path, to: &std::path::Path) -> Result<Moved, ToolError> {
+    if let Some(parent) = to.parent() {
+        std::fs::create_dir_all(parent).map_err(|e| ToolError::io(parent.display(), e))?;
+    }
+    // An empty folder in the new place would stop a rename; it's made again for a copy.
+    let _ = std::fs::remove_dir(to);
+    ctx.report(None, format!("Moving the engines to {}…", to.display()));
+    if std::fs::rename(from, to).is_ok() {
+        return Ok(Moved::Renamed);
+    }
+    let mut count = (0u64, 0u64, 0u64);
+    match copy_store(ctx, from, to, 0, &mut count) {
+        Ok(()) => Ok(Moved::Copied { files: count.1, bytes: count.2 }),
+        Err(e) => {
+            // The folder was empty or missing before: everything in it is this copy's.
+            let _ = std::fs::remove_dir_all(to);
+            Err(e)
+        }
+    }
+}
+
+/// Copy a folder with its links (as links on Unix). `count` is (entries, files, bytes).
+fn copy_store(ctx: &Ctx<'_>, from: &std::path::Path, to: &std::path::Path, depth: usize, count: &mut (u64, u64, u64)) -> Result<(), ToolError> {
+    if depth > MOVE_DEPTH {
+        return Err(ToolError::new(ErrorCode::OverLimit, format!("{} is nested more than {MOVE_DEPTH} folders deep.", from.display())));
+    }
+    std::fs::create_dir_all(to).map_err(|e| ToolError::io(to.display(), e))?;
+    for entry in std::fs::read_dir(from).map_err(|e| ToolError::io(from.display(), e))? {
+        ctx.cancel.check()?;
+        let entry = entry.map_err(|e| ToolError::io(from.display(), e))?;
+        count.0 = count.0.saturating_add(1);
+        if count.0 > MOVE_ENTRIES {
+            return Err(ToolError::new(ErrorCode::OverLimit, format!("{} holds more than {MOVE_ENTRIES} files and folders.", from.display())));
+        }
+        let (path, dest) = (entry.path(), to.join(entry.file_name()));
+        let kind = entry.file_type().map_err(|e| ToolError::io(path.display(), e))?;
+        if kind.is_symlink() {
+            #[cfg(unix)]
+            {
+                let target = std::fs::read_link(&path).map_err(|e| ToolError::io(path.display(), e))?;
+                std::os::unix::fs::symlink(&target, &dest).map_err(|e| ToolError::io(dest.display(), e))?;
+            }
+            #[cfg(not(unix))]
+            {
+                // A link on Windows needs a privilege; copy what it points at instead.
+                if path.is_dir() {
+                    copy_store(ctx, &path, &dest, depth + 1, count)?;
+                } else {
+                    std::fs::copy(&path, &dest).map_err(|e| ToolError::io(path.display(), e))?;
+                }
+            }
+        } else if kind.is_dir() {
+            copy_store(ctx, &path, &dest, depth + 1, count)?;
+        } else {
+            let bytes = std::fs::copy(&path, &dest).map_err(|e| ToolError::io(path.display(), e))?;
+            count.1 = count.1.saturating_add(1);
+            count.2 = count.2.saturating_add(bytes);
+            if count.1.is_multiple_of(500) {
+                ctx.report(None, format!("Moving the engines: {} files, {} MB", count.1, count.2 / 1_000_000));
+            }
+        }
+    }
+    Ok(())
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct SetParams {
     /// A dotted key from settings_show, e.g. `deep_mode`.
     pub key: String,
@@ -526,6 +689,66 @@ fn settings_set(ctx: &mut Ctx<'_>, params: Value) -> Result<ToolOutput, ToolErro
 mod tests {
     use super::*;
     use crate::{CallOptions, Caller, Engine};
+
+    #[test]
+    fn the_engines_folder_moves_with_what_it_holds_and_the_setting_follows() {
+        let s = crate::testing::session();
+        let from = s.settings.engine_store_dir();
+        std::fs::create_dir_all(from.join("ghidra").join("support")).unwrap();
+        std::fs::write(from.join("ghidra").join("support").join("analyzeHeadless"), "x").unwrap();
+        let config = s.config_dir().join("config.toml");
+        let e = Engine::new(s);
+        let elsewhere = tempfile::tempdir().unwrap();
+        let to = elsewhere.path().join("engines");
+        let out = e.call("engines_store_move", json!({"to": to.display().to_string()}), CallOptions::new(Caller::Cli)).unwrap();
+        let ToolOutput::Value(v) = out else { panic!("{out:?}") };
+        assert_eq!(v["how"], "renamed", "{v}");
+        assert!(to.join("ghidra").join("support").join("analyzeHeadless").is_file());
+        assert!(!from.exists());
+        assert_eq!(e.session().settings.engine_store_dir(), to);
+        assert_eq!(Settings::load_from(&config).engines.store_dir.as_deref(), Some(to.as_path()), "the setting is saved");
+        // Back over the same path: a folder that isn't empty is refused, and nothing moves.
+        std::fs::create_dir_all(&from).unwrap();
+        std::fs::write(from.join("mine.txt"), "x").unwrap();
+        assert!(e.call("engines_store_move", json!({"to": from.display().to_string()}), CallOptions::new(Caller::Cli)).is_err());
+        assert!(to.join("ghidra").is_dir());
+        let inside = to.join("deeper");
+        assert!(e.call("engines_store_move", json!({"to": inside.display().to_string()}), CallOptions::new(Caller::Cli)).is_err(), "not into itself");
+        assert!(e.call("engines_store_move", json!({"to": to.display().to_string()}), CallOptions::new(Caller::Cli)).is_err(), "not onto itself");
+    }
+
+    #[test]
+    fn a_copy_of_the_engines_folder_keeps_every_file_and_a_stopped_one_leaves_nothing() {
+        let s = crate::testing::session();
+        let from = tempfile::tempdir().unwrap();
+        std::fs::create_dir_all(from.path().join("java").join("bin")).unwrap();
+        std::fs::write(from.path().join("java").join("bin").join("java"), "1234").unwrap();
+        std::fs::write(from.path().join("top.txt"), "ab").unwrap();
+        let to = tempfile::tempdir().unwrap();
+        let dest = to.path().join("copy");
+        let progress = |_: crate::tool::Progress| {};
+        let mut session = s;
+        let ctx = Ctx { tool: "engines_store_move", session: &mut session, cancel: Default::default(), progress: &progress, caller: Caller::Cli };
+        let mut count = (0, 0, 0);
+        copy_store(&ctx, from.path(), &dest, 0, &mut count).unwrap();
+        assert_eq!((count.1, count.2), (2, 6));
+        assert_eq!(std::fs::read_to_string(dest.join("java").join("bin").join("java")).unwrap(), "1234");
+        let stopped = crate::tool::CancelToken::default();
+        stopped.cancel();
+        let ctx = Ctx { cancel: stopped, ..ctx };
+        let again = to.path().join("again");
+        assert!(move_store_by_copy(&ctx, from.path(), &again).is_err());
+        assert!(!again.exists(), "a stopped copy is removed");
+        assert!(from.path().join("top.txt").is_file(), "and the original stays");
+    }
+
+    /// [`move_store`]'s copy path, which a test can't reach by renaming across drives.
+    fn move_store_by_copy(ctx: &Ctx<'_>, from: &std::path::Path, to: &std::path::Path) -> Result<(), ToolError> {
+        let mut count = (0, 0, 0);
+        copy_store(ctx, from, to, 0, &mut count).inspect_err(|_| {
+            let _ = std::fs::remove_dir_all(to);
+        })
+    }
 
     #[test]
     fn a_setting_is_changed_by_its_dotted_key_and_checked() {

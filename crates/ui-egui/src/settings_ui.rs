@@ -324,6 +324,17 @@ fn engines(app: &mut CraftApp, ui: &mut Ui) {
             app.settings_changed();
         }
     });
+    // The path is the row's description, as for the projects folder, so a long one wraps there.
+    let store = app.settings.engine_store_dir();
+    row(ui, "Engines folder", &store.display().to_string(), |ui| {
+        let busy = app.moving_engines.is_some();
+        let why = tr(
+            "Where Craft Anything keeps the engines it downloads (Ghidra and its Java, Godot, adb…) and Ghidra's analysis cache. Moving it moves what's there.",
+        );
+        if ui.add_enabled_ui(!busy, |ui| widgets::secondary(ui, Some("folder-open"), "Move…")).inner.on_hover_text(why).clicked() {
+            app.pick(Pick::EnginesDir);
+        }
+    });
     ui.add_space(theme::space::MD);
     crate::engine_ui::settings_section(app, ui);
     ui.add_space(theme::space::MD);

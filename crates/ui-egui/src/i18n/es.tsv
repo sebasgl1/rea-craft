@@ -1504,3 +1504,12 @@ In Deep mode, which engine studies the original: the built-in one, REA as well, 
 Built-in	Integrado
 Built-in + REA	Integrado + REA
 REA only	Solo REA
+Move the engines folder	Mover la carpeta de motores
+Engines folder	Carpeta de motores
+Where Craft Anything keeps the engines it downloads (Ghidra and its Java, Godot, adb…) and Ghidra's analysis cache. Moving it moves what's there.	Dónde guarda Craft Anything los motores que descarga (Ghidra y su Java, Godot, adb…) y la caché de análisis de Ghidra. Al cambiarla se mueve lo que hay.
+Move…	Mover…
+Where should the engines go?	¿A dónde van los motores?
+Moving the engines	Moviendo los motores
+Wait for the engine download to finish, then move the folder.	Espera a que termine la descarga del motor y luego mueve la carpeta.
+The engines moved. {why}	Los motores se movieron. {why}
+The engines moved to their new folder.	Los motores se movieron a su nueva carpeta.

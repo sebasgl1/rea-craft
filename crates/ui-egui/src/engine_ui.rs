@@ -161,6 +161,38 @@ impl CraftApp {
         self.ghidra.job = Some(id);
     }
 
+    /// Move the engines folder to `to` in the background, through the engines_store_move tool.
+    pub fn move_engines(&mut self, to: PathBuf) {
+        if self.ghidra.job.is_some() || self.engine_flow.job.is_some() || self.moving_engines.is_some() {
+            self.toast(tr("Wait for the engine download to finish, then move the folder."), true);
+            return;
+        }
+        let engine = self.engine.clone();
+        let id = self.jobs.spawn(tr("Moving the engines"), true, move |j| {
+            let progress = j.reporter();
+            let opts = CallOptions::new(Caller::Ui).with_cancel(j.cancel.clone()).with_progress(&progress);
+            let out = engine.call("engines_store_move", serde_json::json!({"to": to.display().to_string()}), opts).map_err(|e| e.for_people())?;
+            let left = match out {
+                craft_anything_engine::tool::ToolOutput::Value(v) => v.get("old_folder_left").and_then(serde_json::Value::as_str).map(str::to_string),
+                _ => None,
+            };
+            Ok(Done::EnginesMoved { to, left })
+        });
+        self.moving_engines = Some(id);
+    }
+
+    /// The engines folder moved: use it, and look for Ghidra there from now on.
+    pub fn engines_moved(&mut self, to: PathBuf, left: Option<String>) {
+        self.moving_engines = None;
+        self.settings.engines.store_dir = Some(to);
+        self.ghidra.found = None;
+        self.settings_changed();
+        match left {
+            Some(why) => self.toast(trf("The engines moved. {why}", &[("why", &why)]), true),
+            None => self.toast(tr("The engines moved to their new folder."), false),
+        }
+    }
+
     pub fn ghidra_got(&mut self) {
         let waiting = self.ghidra.start_after.take();
         self.ghidra = GhidraFlow::default();

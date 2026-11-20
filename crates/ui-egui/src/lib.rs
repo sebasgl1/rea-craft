@@ -227,6 +227,11 @@ pub enum Done {
     },
     /// Ghidra and its Java were downloaded and set up for Deep mode.
     GhidraGot,
+    /// The engines folder moved to `to`; `left` names an old folder that couldn't be removed.
+    EnginesMoved {
+        to: PathBuf,
+        left: Option<String>,
+    },
     /// A tool started by a button finished (see `CraftApp::act`).
     Acted {
         tool: &'static str,
@@ -327,6 +332,8 @@ pub enum Pick {
     OpenFile,
     OpenFolder,
     GhidraDir,
+    /// Where the engines folder (Ghidra, its Java, other engines) should move.
+    EnginesDir,
     /// The app, game or file to rebuild.
     TargetFile,
     TargetFolder,
@@ -571,6 +578,8 @@ pub struct CraftApp {
     pub engine_flow: engine_ui::Flow,
     /// Getting Ghidra for Deep mode.
     pub ghidra: engine_ui::GhidraFlow,
+    /// The job moving the engines folder, while it runs.
+    pub moving_engines: Option<u64>,
     /// When each toast appeared, in the same order (confirmations hide after a few seconds).
     toast_at: Vec<Instant>,
     settings_dirty: bool,
@@ -679,6 +688,7 @@ impl CraftApp {
             facts_reader: Default::default(),
             engine_flow: Default::default(),
             ghidra: Default::default(),
+            moving_engines: None,
             toast_at: Vec::new(),
             settings_dirty: false,
             save_due: None,
@@ -1205,6 +1215,7 @@ impl CraftApp {
                 Pick::OpenFile => pollster::block_on(d.set_title(tr("Open an app or file")).pick_file()),
                 Pick::OpenFolder => pollster::block_on(d.set_title(tr("Open a folder or app bundle")).pick_folder()),
                 Pick::GhidraDir => pollster::block_on(d.set_title(tr("Where is Ghidra installed?")).pick_folder()),
+                Pick::EnginesDir => pollster::block_on(d.set_title(tr("Where should the engines go?")).pick_folder()),
                 Pick::TargetFile => pollster::block_on(d.set_title(tr("Pick the app, game or file to rebuild")).pick_file()),
                 Pick::TargetFolder => pollster::block_on(d.set_title(tr("Pick the app or game folder")).pick_folder()),
                 Pick::ProjectsDir => pollster::block_on(d.set_title(tr("Where should new projects go?")).pick_folder()),
@@ -1587,6 +1598,9 @@ impl CraftApp {
                 if self.ghidra.job == Some(job) {
                     self.ghidra.job = None;
                 }
+                if self.moving_engines == Some(job) {
+                    self.moving_engines = None;
+                }
                 self.toast(e, true);
                 return;
             }
@@ -1805,6 +1819,7 @@ impl CraftApp {
                             self.settings.engines.ghidra.install_dir = Some(path);
                             self.settings_changed();
                         }
+                        Pick::EnginesDir => self.move_engines(path),
                         Pick::TargetFile | Pick::TargetFolder => {
                             self.state.make.target = craft_anything_engine::workspace::TargetRef::Local { path: path.clone() };
                             self.state.make.game = pick == Pick::TargetFolder;
@@ -1845,6 +1860,7 @@ impl CraftApp {
             }
             Done::EngineGot { builder, installer } => self.engine_got(builder, installer),
             Done::GhidraGot => self.ghidra_got(),
+            Done::EnginesMoved { to, left } => self.engines_moved(to, left),
             Done::AssetKeys(keys) => self.asset_keys = Some(keys),
             Done::Wrote { what, path } => {
                 if let Some(p) = path {

@@ -1504,3 +1504,12 @@ In Deep mode, which engine studies the original: the built-in one, REA as well, 
 Built-in	Sisseehitatud
 Built-in + REA	Sisseehitatud + REA
 REA only	Ainult REA
+Move the engines folder	Teisalda mootorite kaust
+Engines folder	Mootorite kaust
+Where Craft Anything keeps the engines it downloads (Ghidra and its Java, Godot, adb…) and Ghidra's analysis cache. Moving it moves what's there.	Kus Craft Anything hoiab alla laaditud mootoreid (Ghidra ja selle Java, Godot, adb…) ning Ghidra analüüsi vahemälu. Muutmisel teisaldatakse ka sisu.
+Move…	Teisalda…
+Where should the engines go?	Kuhu mootorid teisaldada?
+Moving the engines	Mootorite teisaldamine
+Wait for the engine download to finish, then move the folder.	Oota, kuni mootori allalaadimine lõpeb, ja teisalda siis kaust.
+The engines moved. {why}	Mootorid teisaldati. {why}
+The engines moved to their new folder.	Mootorid on uues kaustas.

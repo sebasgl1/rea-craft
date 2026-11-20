@@ -72,7 +72,7 @@ pub struct ServerOptions {
 }
 
 /// Tools that change the machine without an effect that says so.
-const ACTS_ON_MACHINE: [&str; 3] = ["plugins_add", "engines_install", "native_cutter_command_run"];
+const ACTS_ON_MACHINE: [&str; 4] = ["plugins_add", "engines_install", "engines_store_move", "native_cutter_command_run"];
 
 /// Web tools that act on the person's own desktop and saved sign-ins (a window opens, a sign-in is
 /// kept or deleted): off in restricted mode even with --allow-web.
