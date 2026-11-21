@@ -3,7 +3,7 @@
 //! smali-like bytecode listing, cross-DEX references, compiled resources per locale, and whether
 //! the optional external decoders (JADX for Java source, Apktool) are available.
 
-use super::artifact_tools::{fresh_temp_dir, rel_to};
+use super::artifact_tools::rel_to;
 use super::native_common::{page, spec};
 use super::static_input::{self, Input, builder, format_err};
 use crate::tool::{Ctx, Effects, Requires, ToolOutput, ToolSpec, Toolset, parse_params, schema_of};
@@ -872,7 +872,7 @@ fn jadx_source(ctx: &Ctx<'_>, input: &Path, class_java: &str) -> (Value, Option<
             )),
         );
     };
-    let out = match fresh_temp_dir("craft-anything-jadx") {
+    let out = match super::artifact_tools::original_files_dir(ctx, "jadx") {
         Ok(o) => o,
         Err(e) => {
             return (json!({"status": "failed", "error": e.message}), Some(Limitation::new("jadx_failed", "Could not create a temporary folder for JADX.")));

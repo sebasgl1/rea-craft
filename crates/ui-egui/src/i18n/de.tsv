@@ -1513,3 +1513,11 @@ Moving the engines	Engines werden verschoben
 Wait for the engine download to finish, then move the folder.	Warte, bis der Engine-Download fertig ist, und verschiebe dann den Ordner.
 The engines moved. {why}	Die Engines wurden verschoben. {why}
 The engines moved to their new folder.	Die Engines liegen jetzt im neuen Ordner.
+Original's files	Dateien des Originals
+While a build runs, what's taken out of the original (an unpacked package, decompiled classes) goes in the project's original-files folder, beside app/, or in the system's temporary folder.	Während eines Builds landet, was aus dem Original geholt wird (ein entpacktes Paket, dekompilierte Klassen), im Ordner original-files des Projekts neben app/ oder im temporären Ordner des Systems.
+In the project	Im Projekt
+Temporary folder	Temporärer Ordner
+When a build is ready	Wenn ein Build fertig ist
+Keep the original's files in the project, or delete them (they're taken out again when needed).	Die Dateien des Originals im Projekt behalten oder löschen (sie werden bei Bedarf neu geholt).
+Keep them	Behalten
+Delete them	Löschen

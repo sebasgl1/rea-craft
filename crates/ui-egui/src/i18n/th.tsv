@@ -1513,3 +1513,11 @@ Moving the engines	กำลังย้ายเอนจิน
 Wait for the engine download to finish, then move the folder.	รอให้ดาวน์โหลดเอนจินเสร็จก่อน แล้วค่อยย้ายโฟลเดอร์
 The engines moved. {why}	ย้ายเอนจินแล้ว {why}
 The engines moved to their new folder.	ย้ายเอนจินไปโฟลเดอร์ใหม่แล้ว
+Original's files	ไฟล์ของต้นฉบับ
+While a build runs, what's taken out of the original (an unpacked package, decompiled classes) goes in the project's original-files folder, beside app/, or in the system's temporary folder.	ระหว่างการสร้าง สิ่งที่ดึงออกจากต้นฉบับ (แพ็กเกจที่แตกแล้ว คลาสที่ดีคอมไพล์) จะไปอยู่ในโฟลเดอร์ original-files ของโปรเจกต์ข้าง app/ หรือในโฟลเดอร์ชั่วคราวของระบบ
+In the project	ในโปรเจกต์
+Temporary folder	โฟลเดอร์ชั่วคราว
+When a build is ready	เมื่อการสร้างเสร็จ
+Keep the original's files in the project, or delete them (they're taken out again when needed).	เก็บไฟล์ของต้นฉบับไว้ในโปรเจกต์ หรือลบทิ้ง (จะดึงออกมาใหม่เมื่อต้องใช้)
+Keep them	เก็บไว้
+Delete them	ลบทิ้ง

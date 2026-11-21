@@ -1513,3 +1513,11 @@ Moving the engines	正在移动引擎
 Wait for the engine download to finish, then move the folder.	请等引擎下载完成后再移动文件夹。
 The engines moved. {why}	引擎已移动。{why}
 The engines moved to their new folder.	引擎已移到新文件夹。
+Original's files	原版的文件
+While a build runs, what's taken out of the original (an unpacked package, decompiled classes) goes in the project's original-files folder, beside app/, or in the system's temporary folder.	构建期间从原版取出的内容（解包的安装包、反编译的类）放在项目 app/ 旁的 original-files 文件夹，或系统临时文件夹。
+In the project	项目内
+Temporary folder	临时文件夹
+When a build is ready	构建完成时
+Keep the original's files in the project, or delete them (they're taken out again when needed).	把原版的文件留在项目里，或删除（需要时会再次取出）。
+Keep them	保留
+Delete them	删除

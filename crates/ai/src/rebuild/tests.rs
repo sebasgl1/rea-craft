@@ -1986,6 +1986,23 @@ mod picking_up_a_build {
     }
 
     #[test]
+    fn a_ready_build_keeps_or_deletes_the_originals_files_as_the_settings_say() {
+        for keep in [true, false] {
+            let b = bench();
+            b.hub.engine.session().settings.build.keep_original = keep;
+            let mut ws = worked_on(&b);
+            ws.manifest.awaiting_check = true;
+            ws.save().unwrap();
+            std::fs::create_dir_all(ws.original_dir().join("extract-1")).unwrap();
+            std::fs::write(ws.original_dir().join("extract-1").join("classes.dex"), "x").unwrap();
+            let (ok, _) = try_it(&b, &ws);
+            assert!(ok);
+            assert_eq!(Workspace::open(&ws.root).unwrap().manifest.status, Status::Ready);
+            assert_eq!(ws.original_dir().exists(), keep, "keep_original = {keep}");
+        }
+    }
+
+    #[test]
     fn try_again_after_a_check_that_could_not_run_only_checks() {
         let b = bench();
         let mut ws = worked_on(&b);

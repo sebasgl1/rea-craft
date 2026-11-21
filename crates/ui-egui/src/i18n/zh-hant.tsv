@@ -1513,3 +1513,11 @@ Moving the engines	正在移動引擎
 Wait for the engine download to finish, then move the folder.	請等引擎下載完成後再移動資料夾。
 The engines moved. {why}	引擎已移動。{why}
 The engines moved to their new folder.	引擎已移到新資料夾。
+Original's files	原版的檔案
+While a build runs, what's taken out of the original (an unpacked package, decompiled classes) goes in the project's original-files folder, beside app/, or in the system's temporary folder.	建置期間從原版取出的內容（解包的安裝包、反編譯的類別）放在專案 app/ 旁的 original-files 資料夾，或系統暫存資料夾。
+In the project	專案內
+Temporary folder	暫存資料夾
+When a build is ready	建置完成時
+Keep the original's files in the project, or delete them (they're taken out again when needed).	把原版的檔案留在專案裡，或刪除（需要時會再次取出）。
+Keep them	保留
+Delete them	刪除

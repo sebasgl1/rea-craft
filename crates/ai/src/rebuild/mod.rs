@@ -1120,6 +1120,11 @@ impl Worker {
             1 => summary.push_str(" 1 question about the original is still open."),
             n => summary.push_str(&format!(" {n} questions about the original are still open.")),
         }
+        // The original's files go once the build is ready, when the settings say so.
+        let keep = self.engine.session().settings.build.keep_original;
+        if !keep && let Err(e) = ws.remove_original_files() {
+            summary.push_str(&format!(" The original's files couldn't all be deleted: {}", e.message));
+        }
         ws.set_status(Status::Ready, summary.clone())?;
         self.emit(RunEvent::Step { step: Step::Done, text: summary.clone() });
         Ok(summary)

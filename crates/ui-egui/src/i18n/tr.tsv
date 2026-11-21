@@ -1513,3 +1513,11 @@ Moving the engines	Motorlar taşınıyor
 Wait for the engine download to finish, then move the folder.	Motor indirmesinin bitmesini bekle, sonra klasörü taşı.
 The engines moved. {why}	Motorlar taşındı. {why}
 The engines moved to their new folder.	Motorlar yeni klasörlerinde.
+Original's files	Orijinalin dosyaları
+While a build runs, what's taken out of the original (an unpacked package, decompiled classes) goes in the project's original-files folder, beside app/, or in the system's temporary folder.	Derleme sırasında orijinalden çıkarılanlar (açılmış paket, derlemesi çözülmüş sınıflar) projenin app/ yanındaki original-files klasörüne ya da sistemin geçici klasörüne gider.
+In the project	Projede
+Temporary folder	Geçici klasör
+When a build is ready	Derleme hazır olunca
+Keep the original's files in the project, or delete them (they're taken out again when needed).	Orijinalin dosyalarını projede tut ya da sil (gerekince yeniden çıkarılır).
+Keep them	Tut
+Delete them	Sil

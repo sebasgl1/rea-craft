@@ -923,6 +923,20 @@ impl Workspace {
         // Also where a link would really take it.
         own(&self.root, p) || matches!((real_path(&self.root), real_path(p)), (Some(root), Some(p)) if own(&root, &p))
     }
+    /// Files taken out of the original while it's studied and built (an unpacked package,
+    /// decompiled classes), one folder per extraction, when the settings keep them in the project.
+    pub fn original_dir(&self) -> PathBuf {
+        self.root.join(ORIGINAL_FILES)
+    }
+
+    /// Delete [`Workspace::original_dir`]; an error names what couldn't be removed.
+    pub fn remove_original_files(&self) -> Result<(), ToolError> {
+        match std::fs::remove_dir_all(self.original_dir()) {
+            Err(e) if e.kind() != std::io::ErrorKind::NotFound => Err(ToolError::io(self.original_dir().display(), e)),
+            _ => Ok(()),
+        }
+    }
+
     /// Separate from capture/, which a website study replaces.
     pub fn reference_dir(&self) -> PathBuf {
         self.root.join("reference")
@@ -1030,6 +1044,9 @@ impl Workspace {
 /// The coding agent's session, copied into the project ([`Workspace::agent_session_path`]).
 pub const AGENT_SESSION_FILE: &str = "agent-session.jsonl";
 
+/// Where files taken out of the original go during a build ([`Workspace::original_dir`]).
+pub const ORIGINAL_FILES: &str = "original-files";
+
 /// The names Craft Anything keeps in a project folder beside app/. A folder the person picks
 /// mustn't already have any of them.
 pub const OWN_NAMES: &[&str] = &[
@@ -1049,6 +1066,7 @@ pub const OWN_NAMES: &[&str] = &[
     "reference",
     "attachments",
     "investigation.cany",
+    ORIGINAL_FILES,
     crate::pins::PINNED,
 ];
 

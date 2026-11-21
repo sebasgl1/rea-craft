@@ -1513,3 +1513,11 @@ Moving the engines	Перемещаю движки
 Wait for the engine download to finish, then move the folder.	Дождитесь окончания загрузки движка, затем переместите папку.
 The engines moved. {why}	Движки перемещены. {why}
 The engines moved to their new folder.	Движки в новой папке.
+Original's files	Файлы оригинала
+While a build runs, what's taken out of the original (an unpacked package, decompiled classes) goes in the project's original-files folder, beside app/, or in the system's temporary folder.	Во время сборки извлечённое из оригинала (распакованный пакет, декомпилированные классы) кладётся в папку проекта original-files рядом с app/ или во временную папку системы.
+In the project	В проекте
+Temporary folder	Временная папка
+When a build is ready	Когда сборка готова
+Keep the original's files in the project, or delete them (they're taken out again when needed).	Оставить файлы оригинала в проекте или удалить их (при необходимости они извлекутся снова).
+Keep them	Оставить
+Delete them	Удалить

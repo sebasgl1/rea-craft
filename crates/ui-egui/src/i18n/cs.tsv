@@ -1513,3 +1513,11 @@ Moving the engines	Přesouvám enginy
 Wait for the engine download to finish, then move the folder.	Počkej, až se engine stáhne, a pak složku přesuň.
 The engines moved. {why}	Enginy jsou přesunuté. {why}
 The engines moved to their new folder.	Enginy jsou v nové složce.
+Original's files	Soubory originálu
+While a build runs, what's taken out of the original (an unpacked package, decompiled classes) goes in the project's original-files folder, beside app/, or in the system's temporary folder.	Během sestavení jde to, co se vyjme z originálu (rozbalený balíček, dekompilované třídy), do složky original-files projektu vedle app/, nebo do dočasné složky systému.
+In the project	V projektu
+Temporary folder	Dočasná složka
+When a build is ready	Když je sestavení hotové
+Keep the original's files in the project, or delete them (they're taken out again when needed).	Ponechat soubory originálu v projektu, nebo je smazat (v případě potřeby se vyjmou znovu).
+Keep them	Ponechat
+Delete them	Smazat

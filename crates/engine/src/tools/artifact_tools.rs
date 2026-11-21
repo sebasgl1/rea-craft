@@ -489,6 +489,17 @@ pub(crate) fn fresh_temp_dir(prefix: &str) -> Result<PathBuf, ToolError> {
     fresh_dir_in(&std::env::temp_dir(), prefix)
 }
 
+/// A fresh folder for files taken out of the original, named after `name`: in the project's
+/// original-files/ while a build runs and the settings keep them there, else in the temporary folder.
+pub(crate) fn original_files_dir(ctx: &Ctx<'_>, name: &str) -> Result<PathBuf, ToolError> {
+    if ctx.session.settings.build.original_files == crate::settings::OriginalFiles::Project
+        && let Some(ws) = super::interaction_tools::inbox(ctx).as_ref().and_then(super::interaction_tools::workspace_of)
+    {
+        return fresh_dir_in(&ws.original_dir(), name);
+    }
+    fresh_temp_dir(&format!("craft-anything-{name}"))
+}
+
 /// Create a new private directory in `base`, making `base` first when it's missing.
 pub(crate) fn fresh_dir_in(base: &Path, prefix: &str) -> Result<PathBuf, ToolError> {
     std::fs::create_dir_all(base).map_err(|e| ToolError::io(base.display(), e))?;
@@ -998,7 +1009,7 @@ fn core_archive_extract(ctx: &mut Ctx<'_>, params: Value) -> Result<ToolOutput, 
             .with_remediation("Pass if_tampered=continue to extract anyway.")
             .with_details(json!({"contradictions": contradictions})));
     }
-    let out = fresh_temp_dir("craft-anything-extract")?;
+    let out = original_files_dir(ctx, "extract")?;
     let mut written = 0usize;
     let mut total = 0u64;
     let mut skipped = Vec::new();
@@ -1257,6 +1268,31 @@ mod tests {
         let out = PathBuf::from(x["result"]["output_directory"].as_str().unwrap());
         assert_eq!(std::fs::read_to_string(out.join("main.js")).unwrap(), fx::MAIN_JS);
         assert_eq!(x["result"]["files_written"], 5);
+        std::fs::remove_dir_all(out).unwrap();
+    }
+
+    #[test]
+    fn during_a_build_the_originals_files_go_in_the_project_unless_the_settings_say_temp() {
+        use crate::workspace::{TargetRef, Workspace};
+        let dir = tempfile::tempdir().unwrap();
+        let z = dir.path().join("pkg.zip");
+        std::fs::write(&z, fx::zip_stored(&[("a.txt", b"a")])).unwrap();
+        let mut s = crate::testing::session();
+        let ws = Workspace::create(&s.config_dir(), "Scanner", "A scanner", TargetRef::None).unwrap();
+        s.ext.insert(std::sync::Arc::new(crate::inbox::InboxDir(ws.inbox_dir())));
+        let e = Engine::new(s);
+        let x = call(&e, "core_archive_extract", json!({"path": z})).unwrap();
+        let out = PathBuf::from(x["result"]["output_directory"].as_str().unwrap());
+        assert!(out.starts_with(ws.original_dir()), "{}", out.display());
+        assert!(out.join("a.txt").is_file());
+        assert!(ws.is_own_record(&out), "the builder doesn't take it for the app's");
+        ws.remove_original_files().unwrap();
+        assert!(!ws.original_dir().exists());
+        ws.remove_original_files().unwrap();
+        e.session().settings.build.original_files = crate::settings::OriginalFiles::Temp;
+        let x = call(&e, "core_archive_extract", json!({"path": z})).unwrap();
+        let out = PathBuf::from(x["result"]["output_directory"].as_str().unwrap());
+        assert!(!out.starts_with(&ws.root), "{}", out.display());
         std::fs::remove_dir_all(out).unwrap();
     }
 

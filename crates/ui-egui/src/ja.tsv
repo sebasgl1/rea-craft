@@ -968,3 +968,11 @@ Moving the engines	エンジンを移動中
 Wait for the engine download to finish, then move the folder.	エンジンのダウンロードが終わってからフォルダーを移動してください。
 The engines moved. {why}	エンジンを移動しました。{why}
 The engines moved to their new folder.	エンジンを新しいフォルダーに移動しました。
+Original's files	オリジナルのファイル
+While a build runs, what's taken out of the original (an unpacked package, decompiled classes) goes in the project's original-files folder, beside app/, or in the system's temporary folder.	ビルド中にオリジナルから取り出したもの（展開したパッケージ、逆コンパイルしたクラス）は、プロジェクトの app/ の隣にある original-files フォルダーか、システムの一時フォルダーに置かれます。
+In the project	プロジェクト内
+Temporary folder	一時フォルダー
+When a build is ready	ビルドの完了時
+Keep the original's files in the project, or delete them (they're taken out again when needed).	オリジナルのファイルをプロジェクトに残すか削除します（必要なときにまた取り出します）。
+Keep them	残す
+Delete them	削除する

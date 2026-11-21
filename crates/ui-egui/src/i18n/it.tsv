@@ -1515,3 +1515,11 @@ Moving the engines	Spostamento dei motori
 Wait for the engine download to finish, then move the folder.	Aspetta che finisca il download del motore, poi sposta la cartella.
 The engines moved. {why}	I motori sono stati spostati. {why}
 The engines moved to their new folder.	I motori sono nella nuova cartella.
+Original's files	File dell'originale
+While a build runs, what's taken out of the original (an unpacked package, decompiled classes) goes in the project's original-files folder, beside app/, or in the system's temporary folder.	Durante una build, ciò che viene estratto dall'originale (un pacchetto spacchettato, classi decompilate) va nella cartella original-files del progetto, accanto ad app/, o nella cartella temporanea del sistema.
+In the project	Nel progetto
+Temporary folder	Cartella temporanea
+When a build is ready	Quando una build è pronta
+Keep the original's files in the project, or delete them (they're taken out again when needed).	Tenere i file dell'originale nel progetto o eliminarli (vengono estratti di nuovo quando servono).
+Keep them	Tenerli
+Delete them	Eliminarli

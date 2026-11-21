@@ -45,6 +45,11 @@ recrear (Estudiar → Construir → Verificar → Refinar) lo use bien.
    entre discos se copia, se guarda el ajuste y se borra la carpeta vieja. Desde la CLI:
    `craft-anything-cli engines-store-move --to "E:\Craft Anything\engines"`. Los proyectos (lo que
    más escribe) se cambian en Settings → General → *Los proyectos nuevos van en*.
+5. **Archivos del original en el proyecto**: lo que se saca del original durante una construcción
+   (el paquete desempacado, las clases descompiladas con JADX) va a la carpeta `original-files/` del
+   proyecto, junto a `app/`, y no a la carpeta temporal del sistema. En Settings → Builds:
+   *Archivos del original* (En el proyecto / Carpeta temporal) y *Cuando una construcción está
+   lista* (Conservarlos / Borrarlos). Fuera de una construcción siguen yendo a la carpeta temporal.
 
 ## Prueba rápida en tu PC
 

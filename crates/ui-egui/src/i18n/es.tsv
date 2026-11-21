@@ -1513,3 +1513,11 @@ Moving the engines	Moviendo los motores
 Wait for the engine download to finish, then move the folder.	Espera a que termine la descarga del motor y luego mueve la carpeta.
 The engines moved. {why}	Los motores se movieron. {why}
 The engines moved to their new folder.	Los motores se movieron a su nueva carpeta.
+Original's files	Archivos del original
+While a build runs, what's taken out of the original (an unpacked package, decompiled classes) goes in the project's original-files folder, beside app/, or in the system's temporary folder.	Mientras corre una construcción, lo que se saca del original (un paquete desempacado, clases descompiladas) va a la carpeta original-files del proyecto, junto a app/, o a la carpeta temporal del sistema.
+In the project	En el proyecto
+Temporary folder	Carpeta temporal
+When a build is ready	Cuando una construcción está lista
+Keep the original's files in the project, or delete them (they're taken out again when needed).	Conservar los archivos del original en el proyecto, o borrarlos (se vuelven a sacar cuando hagan falta).
+Keep them	Conservarlos
+Delete them	Borrarlos

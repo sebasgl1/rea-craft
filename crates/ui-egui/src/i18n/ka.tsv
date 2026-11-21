@@ -1513,3 +1513,11 @@ Moving the engines	ძრავების გადატანა
 Wait for the engine download to finish, then move the folder.	დაელოდე ძრავის ჩამოტვირთვის დასრულებას და შემდეგ გადაიტანე საქაღალდე.
 The engines moved. {why}	ძრავები გადაიტანა. {why}
 The engines moved to their new folder.	ძრავები ახალ საქაღალდეშია.
+Original's files	ორიგინალის ფაილები
+While a build runs, what's taken out of the original (an unpacked package, decompiled classes) goes in the project's original-files folder, beside app/, or in the system's temporary folder.	აწყობისას ორიგინალიდან ამოღებული (გახსნილი პაკეტი, დეკომპილირებული კლასები) ინახება პროექტის original-files საქაღალდეში app/-ის გვერდით ან სისტემის დროებით საქაღალდეში.
+In the project	პროექტში
+Temporary folder	დროებითი საქაღალდე
+When a build is ready	როცა აწყობა მზადაა
+Keep the original's files in the project, or delete them (they're taken out again when needed).	ორიგინალის ფაილების შენახვა პროექტში ან წაშლა (საჭიროებისას ხელახლა ამოიღება).
+Keep them	შენახვა
+Delete them	წაშლა

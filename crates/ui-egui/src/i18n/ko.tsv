@@ -1513,3 +1513,11 @@ Moving the engines	엔진 옮기는 중
 Wait for the engine download to finish, then move the folder.	엔진 다운로드가 끝난 뒤에 폴더를 옮기세요.
 The engines moved. {why}	엔진을 옮겼습니다. {why}
 The engines moved to their new folder.	엔진을 새 폴더로 옮겼습니다.
+Original's files	원본 파일
+While a build runs, what's taken out of the original (an unpacked package, decompiled classes) goes in the project's original-files folder, beside app/, or in the system's temporary folder.	빌드 중 원본에서 꺼낸 것(풀어 놓은 패키지, 디컴파일한 클래스)은 프로젝트의 app/ 옆 original-files 폴더나 시스템 임시 폴더에 둡니다.
+In the project	프로젝트 안
+Temporary folder	임시 폴더
+When a build is ready	빌드가 준비되면
+Keep the original's files in the project, or delete them (they're taken out again when needed).	원본 파일을 프로젝트에 남기거나 지웁니다(필요하면 다시 꺼냅니다).
+Keep them	남기기
+Delete them	지우기

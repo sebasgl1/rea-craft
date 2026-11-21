@@ -1513,3 +1513,11 @@ Moving the engines	Mootorite teisaldamine
 Wait for the engine download to finish, then move the folder.	Oota, kuni mootori allalaadimine lõpeb, ja teisalda siis kaust.
 The engines moved. {why}	Mootorid teisaldati. {why}
 The engines moved to their new folder.	Mootorid on uues kaustas.
+Original's files	Originaali failid
+While a build runs, what's taken out of the original (an unpacked package, decompiled classes) goes in the project's original-files folder, beside app/, or in the system's temporary folder.	Ehitamise ajal läheb originaalist võetu (lahti pakitud pakett, dekompileeritud klassid) projekti kausta original-files app/ kõrval või süsteemi ajutisse kausta.
+In the project	Projektis
+Temporary folder	Ajutine kaust
+When a build is ready	Kui ehitus on valmis
+Keep the original's files in the project, or delete them (they're taken out again when needed).	Jäta originaali failid projekti alles või kustuta need (vajadusel võetakse uuesti).
+Keep them	Jäta alles
+Delete them	Kustuta

@@ -1116,6 +1116,26 @@ fn builds(app: &mut CraftApp, ui: &mut Ui) {
             }
         },
     );
+    row(
+        ui,
+        "Original's files",
+        "While a build runs, what's taken out of the original (an unpacked package, decompiled classes) goes in the project's original-files folder, beside app/, or in the system's temporary folder.",
+        |ui| {
+            use craft_anything_engine::settings::OriginalFiles;
+            let sel = usize::from(b.original_files == OriginalFiles::Temp);
+            if let Some(i) = widgets::segmented(ui, &["In the project", "Temporary folder"], sel, theme::ControlSize::Medium) {
+                b.original_files = if i == 1 { OriginalFiles::Temp } else { OriginalFiles::Project };
+                changed = true;
+            }
+        },
+    );
+    row(ui, "When a build is ready", "Keep the original's files in the project, or delete them (they're taken out again when needed).", |ui| {
+        let sel = usize::from(!b.keep_original);
+        if let Some(i) = widgets::segmented(ui, &["Keep them", "Delete them"], sel, theme::ControlSize::Medium) {
+            b.keep_original = i == 0;
+            changed = true;
+        }
+    });
     ui.add_space(theme::space::SM);
     if let Some(bytes) = app.pinned_copy_bytes {
         row(ui, "Pinned builds", "Size", |ui| {

@@ -1510,3 +1510,11 @@ Moving the engines	Déplacement des moteurs
 Wait for the engine download to finish, then move the folder.	Attends la fin du téléchargement du moteur, puis déplace le dossier.
 The engines moved. {why}	Les moteurs ont été déplacés. {why}
 The engines moved to their new folder.	Les moteurs sont dans leur nouveau dossier.
+Original's files	Fichiers de l'original
+While a build runs, what's taken out of the original (an unpacked package, decompiled classes) goes in the project's original-files folder, beside app/, or in the system's temporary folder.	Pendant une construction, ce qui est tiré de l'original (un paquet déballé, des classes décompilées) va dans le dossier original-files du projet, à côté d'app/, ou dans le dossier temporaire du système.
+In the project	Dans le projet
+Temporary folder	Dossier temporaire
+When a build is ready	Quand une construction est prête
+Keep the original's files in the project, or delete them (they're taken out again when needed).	Garder les fichiers de l'original dans le projet, ou les supprimer (ils sont extraits de nouveau au besoin).
+Keep them	Les garder
+Delete them	Les supprimer

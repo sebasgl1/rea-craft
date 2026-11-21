@@ -164,6 +164,24 @@ pub struct BuildSettings {
     /// the study's and a JavaScript app is also compared with the original by REA after each build.
     /// Empty or unknown names mean `craft`.
     pub study_engines: Vec<String>,
+    /// Where files taken out of the original (an unpacked package, decompiled classes) go while a
+    /// project is being built: `project`, its original-files/ folder, or `temp`, the system's
+    /// temporary folder. Outside a build they go to the temporary folder.
+    pub original_files: OriginalFiles,
+    /// Keep the original's files in the project when a build is ready; false deletes them then
+    /// (they're taken out again when needed).
+    pub keep_original: bool,
+}
+
+/// Where files taken out of the original go during a build ([`BuildSettings::original_files`]).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum OriginalFiles {
+    /// The project's original-files/ folder, beside app/.
+    #[default]
+    Project,
+    /// The system's temporary folder.
+    Temp,
 }
 
 impl Default for BuildSettings {
@@ -176,6 +194,8 @@ impl Default for BuildSettings {
             picture_good_enough: None,
             parallel: 2,
             study_engines: vec![STUDY_CRAFT.to_string()],
+            original_files: OriginalFiles::Project,
+            keep_original: true,
         }
     }
 }

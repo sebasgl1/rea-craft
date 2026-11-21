@@ -1513,3 +1513,11 @@ Moving the engines	Đang chuyển engine
 Wait for the engine download to finish, then move the folder.	Chờ tải engine xong rồi hãy chuyển thư mục.
 The engines moved. {why}	Đã chuyển engine. {why}
 The engines moved to their new folder.	Engine đã ở thư mục mới.
+Original's files	Tệp của bản gốc
+While a build runs, what's taken out of the original (an unpacked package, decompiled classes) goes in the project's original-files folder, beside app/, or in the system's temporary folder.	Khi đang dựng, những gì lấy ra từ bản gốc (gói đã giải nén, lớp đã dịch ngược) được đặt trong thư mục original-files của dự án, cạnh app/, hoặc trong thư mục tạm của hệ thống.
+In the project	Trong dự án
+Temporary folder	Thư mục tạm
+When a build is ready	Khi bản dựng xong
+Keep the original's files in the project, or delete them (they're taken out again when needed).	Giữ tệp của bản gốc trong dự án, hoặc xóa chúng (sẽ lấy ra lại khi cần).
+Keep them	Giữ lại
+Delete them	Xóa đi
