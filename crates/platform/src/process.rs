@@ -981,11 +981,27 @@ pub struct Launch {
     log: Option<PathBuf>,
     label: Option<String>,
     remediation: Option<String>,
+    env: Vec<(OsString, OsString)>,
 }
 
 impl Launch {
     pub fn new(program: impl AsRef<OsStr>) -> Self {
-        Launch { program: program.as_ref().to_owned(), args: Vec::new(), cwd: None, hide_console: false, log: None, label: None, remediation: None }
+        Launch {
+            program: program.as_ref().to_owned(),
+            args: Vec::new(),
+            cwd: None,
+            hide_console: false,
+            log: None,
+            label: None,
+            remediation: None,
+            env: Vec::new(),
+        }
+    }
+
+    /// Set an environment variable for the program (and what it starts).
+    pub fn env(mut self, key: impl AsRef<OsStr>, value: impl AsRef<OsStr>) -> Self {
+        self.env.push((key.as_ref().to_owned(), value.as_ref().to_owned()));
+        self
     }
 
     pub fn arg(mut self, a: impl AsRef<OsStr>) -> Self {
@@ -1060,6 +1076,7 @@ impl Launch {
         let mut cmd = std::process::Command::new(&self.program);
         cmd.args(&self.args).stdin(Stdio::null());
         use_search_path(&mut cmd);
+        cmd.envs(self.env.iter().map(|(k, v)| (k, v)));
         match &self.log {
             Some(path) => {
                 let out = open_log(path).map_err(|e| ToolError::io(path.display(), e))?;

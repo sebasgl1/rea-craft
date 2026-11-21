@@ -50,6 +50,8 @@ const ACTIONS: &[Action] = &[
     a("remove_backend",      "remove an AI and its key",                       Cli("ai remove <name>")),
     a("set_agent_program",   "run an agent app from a program it isn't found as", Cli("ai program <name> <path>")),
     a("set_agent_folder",    "keep Claude Code's sign-in in another folder (another account)", Cli("ai folder <name> <path>")),
+    a("add_agent_account",   "add Claude Code again for another account, with a folder of its own", Cli("ai add-account <name>")),
+    a("sign_in_agent",       "open the sign-in for the account of Claude Code's folder", Cli("ai login <name>")),
     a("refresh_projects",    "list the projects",                              Tool(&["project_list"])),
     a("remember_project",    "keep a project in a picked folder in the list",  Tool(&["rebuild_start"])),
     a("add_project_folder",  "list projects from another folder too",          Tool(&["settings_set"])),

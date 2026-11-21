@@ -1521,3 +1521,9 @@ When a build is ready	Cuando una construcción está lista
 Keep the original's files in the project, or delete them (they're taken out again when needed).	Conservar los archivos del original en el proyecto, o borrarlos (se vuelven a sacar cuando hagan falta).
 Keep them	Conservarlos
 Delete them	Borrarlos
+Sign in	Iniciar sesión
+Add another account	Agregar otra cuenta
+Opens a window to sign in to the account of this folder.	Abre una ventana para iniciar sesión en la cuenta de esta carpeta.
+Adds this AI again with a folder of its own, for another account.	Agrega esta IA otra vez con su propia carpeta, para otra cuenta.
+{name} was added. Press "Sign in" on it to sign in with the other account.	Se agregó {name}. Toca "Iniciar sesión" en ella para entrar con la otra cuenta.
+A window opened to sign in {name}. Finish in it and in the browser, then press Check.	Se abrió una ventana para iniciar sesión en {name}. Termina ahí y en el navegador, y luego toca Verificar.

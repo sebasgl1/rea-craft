@@ -79,6 +79,11 @@ pub enum AiCommand {
     /// CLAUDE_CONFIG_DIR), so this AI uses another account: a full path or one under `~/`, on the
     /// computer it runs on. Leave the path out for its usual folder.
     Folder { name: String, path: Option<String> },
+    /// Add another account of an AI that keeps its sign-in in a folder (Claude Code): a copy named
+    /// "<name> 2" with its own folder (~/.claude-2). Sign in to it with `ai login`.
+    AddAccount { name: String },
+    /// Open a window to sign in to an AI's account (Claude Code: `claude auth login` in its folder).
+    Login { name: String },
     /// Set the model an AI uses (Claude Code, Codex: the model it's asked for); leave it out to list
     /// the ones it can use. `default` for Claude Code or Codex passes no model, so it uses the model
     /// its own settings name (which may be a custom model), rather than a built-in default.
@@ -468,6 +473,20 @@ pub fn ai(cli: &Cli, c: &AiCommand, f: Format) -> u8 {
             Ok(found) => {
                 emit(&json!({"name": name, "program": path, "found": found}), f);
                 if found { 0 } else { 1 }
+            }
+            Err(e) => fail(&e, f),
+        },
+        AiCommand::AddAccount { name } => match hub.add_account(name) {
+            Ok(added) => {
+                emit(&json!({"added": added, "next": format!("craft-anything-cli ai login \"{added}\"")}), f);
+                0
+            }
+            Err(e) => fail(&e, f),
+        },
+        AiCommand::Login { name } => match hub.sign_in(name) {
+            Ok(folder) => {
+                emit(&json!({"name": name, "folder": folder, "opened": true}), f);
+                0
             }
             Err(e) => fail(&e, f),
         },

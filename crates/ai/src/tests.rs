@@ -637,6 +637,37 @@ fn claude_codes_folder_is_set_per_ai() {
     assert_eq!(crate::folder_var(&claude("x", None)), Some("CLAUDE_CONFIG_DIR"));
 }
 
+/// Another Claude Code account: a copy with the next free name and a folder of its own, never one
+/// already in use; not for agents without a folder or on another computer.
+#[test]
+fn another_claude_code_account_gets_its_own_name_and_folder() {
+    let (h, _d) = hub();
+    let claude = |name: &str, ssh: Option<&str>| BackendConfig {
+        name: name.into(),
+        kind: BackendKind::AgentCli,
+        model: "claude-code".into(),
+        base_url: None,
+        ssh_host: ssh.map(str::to_string),
+        enabled: true,
+    };
+    h.add_backend(claude("Claude Code", None), None).unwrap();
+    h.add_backend(claude("Claude on box", Some("box")), None).unwrap();
+    h.add_backend(BackendConfig { model: "codex".into(), ..claude("Codex", None) }, None).unwrap();
+    let folder = |h: &AiHub, name: &str| h.options().get(name).and_then(|o| o.config_dir.clone());
+    assert_eq!(h.add_account("Claude Code").unwrap(), "Claude Code 2");
+    assert_eq!(folder(&h, "Claude Code 2").as_deref(), Some("~/.claude-2"));
+    assert_eq!(folder(&h, "Claude Code"), None, "the first keeps its usual folder");
+    // From the copy, and with ~/.claude-3 taken by hand elsewhere: the next free pair.
+    h.add_backend(claude("Work", None), None).unwrap();
+    assert!(h.set_config_dir("Work", Some("~/.claude-3")).unwrap());
+    assert_eq!(h.add_account("Claude Code 2").unwrap(), "Claude Code 4");
+    assert_eq!(folder(&h, "Claude Code 4").as_deref(), Some("~/.claude-4"));
+    assert!(h.add_account("Codex").unwrap_err().message.contains("folder of its own"));
+    assert!(h.add_account("Claude on box").unwrap_err().message.contains("another computer"));
+    assert!(h.add_account("Nobody").is_err());
+    assert!(h.sign_in("Codex").is_err(), "Codex isn't signed in from here");
+}
+
 /// #123, #127: the model an AI uses is changed; Claude Code is offered Claude's models.
 #[test]
 fn an_ais_model_is_changed() {

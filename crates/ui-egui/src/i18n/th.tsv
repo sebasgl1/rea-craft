@@ -1521,3 +1521,9 @@ When a build is ready	เมื่อการสร้างเสร็จ
 Keep the original's files in the project, or delete them (they're taken out again when needed).	เก็บไฟล์ของต้นฉบับไว้ในโปรเจกต์ หรือลบทิ้ง (จะดึงออกมาใหม่เมื่อต้องใช้)
 Keep them	เก็บไว้
 Delete them	ลบทิ้ง
+Sign in	ลงชื่อเข้าใช้
+Add another account	เพิ่มบัญชีอื่น
+Opens a window to sign in to the account of this folder.	เปิดหน้าต่างเพื่อลงชื่อเข้าใช้บัญชีของโฟลเดอร์นี้
+Adds this AI again with a folder of its own, for another account.	เพิ่ม AI นี้อีกครั้งพร้อมโฟลเดอร์ของตัวเอง สำหรับอีกบัญชี
+{name} was added. Press "Sign in" on it to sign in with the other account.	เพิ่ม {name} แล้ว กด "ลงชื่อเข้าใช้" ที่การ์ดนั้นเพื่อเข้าด้วยอีกบัญชี
+A window opened to sign in {name}. Finish in it and in the browser, then press Check.	เปิดหน้าต่างลงชื่อเข้าใช้ {name} แล้ว ทำให้เสร็จในหน้าต่างนั้นและในเบราว์เซอร์ แล้วกดตรวจสอบ

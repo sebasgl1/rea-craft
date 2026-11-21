@@ -227,6 +227,8 @@ pub enum Done {
     },
     /// Ghidra and its Java were downloaded and set up for Deep mode.
     GhidraGot,
+    /// Something to tell the person, then what else finished with it.
+    Said(String, Box<Done>),
     /// The engines folder moved to `to`; `left` names an old folder that couldn't be removed.
     EnginesMoved {
         to: PathBuf,
@@ -1861,6 +1863,10 @@ impl CraftApp {
             Done::EngineGot { builder, installer } => self.engine_got(builder, installer),
             Done::GhidraGot => self.ghidra_got(),
             Done::EnginesMoved { to, left } => self.engines_moved(to, left),
+            Done::Said(text, then) => {
+                self.toast(text, false);
+                self.handle_done(jobs::Finished { job, result: Ok(*then) });
+            }
             Done::AssetKeys(keys) => self.asset_keys = Some(keys),
             Done::Wrote { what, path } => {
                 if let Some(p) = path {

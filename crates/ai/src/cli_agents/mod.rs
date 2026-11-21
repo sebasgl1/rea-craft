@@ -475,6 +475,45 @@ pub(crate) fn sign_in_hint_in(message: &str, flatpak: bool, folder: Option<&Path
 }
 
 /// Signing in for the Claude Code that a Flatpak build starts: the same folder it will use.
+/// Open a terminal window that runs `program args…` (an agent app's sign-in) with `var` set to
+/// `folder` when one is given, so the person signs in there; it returns once the window opened.
+/// Windows opens a console, macOS Terminal, Linux the first terminal app found.
+pub fn open_sign_in_window(program: &str, args: &[&str], var: &str, folder: Option<&Path>) -> Result<(), ToolError> {
+    use craft_anything_platform::process::Launch;
+    let fix = "Open a terminal yourself and run the command shown in the error.";
+    #[cfg(windows)]
+    {
+        // `start` opens a console of its own; the variable reaches the program through it.
+        let mut launch = Launch::new("cmd.exe").args(["/c", "start", "Claude Code sign-in", "cmd", "/k", program]).args(args).label("the sign-in window");
+        if let Some(f) = folder {
+            launch = launch.env(var, f);
+        }
+        launch.hide_console().remediation(fix).start().map(|_| ())
+    }
+    #[cfg(not(windows))]
+    {
+        let set = folder.map(|f| format!("{var}={} ", crate::ssh::shell_quote(&f.display().to_string()))).unwrap_or_default();
+        let line = format!("{set}{} {}", crate::ssh::shell_quote(program), args.join(" "));
+        if cfg!(target_os = "macos") {
+            let script = format!("tell application \"Terminal\"\nactivate\ndo script \"{}\"\nend tell", line.replace('\\', "\\\\").replace('"', "\\\""));
+            return Launch::new("osascript").args(["-e", &script]).label("Terminal").remediation(fix).start().map(|_| ());
+        }
+        // Keep the window open after the sign-in, so its last words can be read.
+        let shell = format!("{line}; exec \"${{SHELL:-sh}}\"");
+        let found = ["x-terminal-emulator", "gnome-terminal", "konsole", "xfce4-terminal", "xterm"].into_iter().find_map(|t| find_program(t).map(|p| (t, p)));
+        let Some((name, path)) = found else {
+            return Err(ToolError::new(ErrorCode::FeatureMissing, "No terminal app was found to sign in with.")
+                .with_remediation(format!("Open a terminal and run: {line}")));
+        };
+        let lead: &[&str] = match name {
+            "gnome-terminal" => &["--"],
+            "xfce4-terminal" => &["-x"],
+            _ => &["-e"],
+        };
+        Launch::new(path).args(lead).args(["sh", "-c", &shell]).label(name).remediation(fix).start().map(|_| ())
+    }
+}
+
 const FLATPAK_SIGN_IN: &str = "flatpak run --command=sh ai.storyteller.craft-anything -c 'CLAUDE_CONFIG_DIR=\"$XDG_DATA_HOME/craft-anything/claude\" \"$HOME/.local/bin/claude\" auth login'";
 
 /// [`FLATPAK_SIGN_IN`] for a chosen folder, already quoted for the sandbox's shell.

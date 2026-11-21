@@ -1521,3 +1521,9 @@ When a build is ready	Khi bản dựng xong
 Keep the original's files in the project, or delete them (they're taken out again when needed).	Giữ tệp của bản gốc trong dự án, hoặc xóa chúng (sẽ lấy ra lại khi cần).
 Keep them	Giữ lại
 Delete them	Xóa đi
+Sign in	Đăng nhập
+Add another account	Thêm tài khoản khác
+Opens a window to sign in to the account of this folder.	Mở cửa sổ để đăng nhập tài khoản của thư mục này.
+Adds this AI again with a folder of its own, for another account.	Thêm lại AI này với thư mục riêng, cho một tài khoản khác.
+{name} was added. Press "Sign in" on it to sign in with the other account.	Đã thêm {name}. Bấm "Đăng nhập" trên đó để vào bằng tài khoản kia.
+A window opened to sign in {name}. Finish in it and in the browser, then press Check.	Đã mở cửa sổ đăng nhập {name}. Hoàn tất trong đó và trên trình duyệt, rồi bấm Kiểm tra.

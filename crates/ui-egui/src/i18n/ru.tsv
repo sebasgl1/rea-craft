@@ -1521,3 +1521,9 @@ When a build is ready	Когда сборка готова
 Keep the original's files in the project, or delete them (they're taken out again when needed).	Оставить файлы оригинала в проекте или удалить их (при необходимости они извлекутся снова).
 Keep them	Оставить
 Delete them	Удалить
+Sign in	Войти
+Add another account	Добавить другой аккаунт
+Opens a window to sign in to the account of this folder.	Открывает окно входа в аккаунт этой папки.
+Adds this AI again with a folder of its own, for another account.	Добавляет этот ИИ ещё раз со своей папкой, для другого аккаунта.
+{name} was added. Press "Sign in" on it to sign in with the other account.	{name} добавлен. Нажмите на нём «Войти», чтобы войти с другим аккаунтом.
+A window opened to sign in {name}. Finish in it and in the browser, then press Check.	Открылось окно входа для {name}. Завершите вход в нём и в браузере, затем нажмите «Проверить».

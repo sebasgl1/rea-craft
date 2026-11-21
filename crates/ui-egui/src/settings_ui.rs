@@ -385,6 +385,7 @@ fn ai(app: &mut CraftApp, ui: &mut Ui) {
     let (mut choose_program, mut usual_program, mut use_program) = (None, None, None);
     let mut check_agent = None;
     let mut save_folder = None;
+    let (mut sign_in, mut add_account) = (None, None);
     // Taken out while the rows borrow the app, and put back after them.
     let mut folder_drafts = std::mem::take(&mut app.folder_inputs);
     let mut key_drafts = std::mem::take(&mut app.backend_key_inputs);
@@ -495,6 +496,24 @@ fn ai(app: &mut CraftApp, ui: &mut Ui) {
                         }
                         if r.lost_focus() && text.trim() != saved {
                             save_folder = Some((b.name.clone(), text.trim().to_string()));
+                        }
+                        // Here only: an AI on another computer signs in there.
+                        if !b.ssh_host.as_deref().is_some_and(|h| !h.trim().is_empty()) {
+                            ui.add_space(theme::space::XS);
+                            ui.horizontal_wrapped(|ui| {
+                                if widgets::secondary(ui, None, "Sign in")
+                                    .on_hover_text(tr("Opens a window to sign in to the account of this folder."))
+                                    .clicked()
+                                {
+                                    sign_in = Some(b.name.clone());
+                                }
+                                if widgets::secondary(ui, None, "Add another account")
+                                    .on_hover_text(tr("Adds this AI again with a folder of its own, for another account."))
+                                    .clicked()
+                                {
+                                    add_account = Some(b.name.clone());
+                                }
+                            });
                         }
                         ui.add_space(theme::space::XS);
                     }
@@ -851,6 +870,12 @@ fn ai(app: &mut CraftApp, ui: &mut Ui) {
     }
     if let Some((name, folder)) = save_folder {
         app.set_agent_folder(&name, Some(folder));
+    }
+    if let Some(name) = sign_in {
+        app.sign_in_agent(&name);
+    }
+    if let Some(name) = add_account {
+        app.add_agent_account(&name);
     }
     if let Some(name) = pick_model {
         app.pick_model(&name);

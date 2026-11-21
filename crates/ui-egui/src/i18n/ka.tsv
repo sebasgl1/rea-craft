@@ -1521,3 +1521,9 @@ When a build is ready	როცა აწყობა მზადაა
 Keep the original's files in the project, or delete them (they're taken out again when needed).	ორიგინალის ფაილების შენახვა პროექტში ან წაშლა (საჭიროებისას ხელახლა ამოიღება).
 Keep them	შენახვა
 Delete them	წაშლა
+Sign in	შესვლა
+Add another account	სხვა ანგარიშის დამატება
+Opens a window to sign in to the account of this folder.	ხსნის ფანჯარას ამ საქაღალდის ანგარიშში შესასვლელად.
+Adds this AI again with a folder of its own, for another account.	ამატებს ამ AI-ს ხელახლა საკუთარი საქაღალდით, სხვა ანგარიშისთვის.
+{name} was added. Press "Sign in" on it to sign in with the other account.	{name} დაემატა. დააჭირე მასზე „შესვლას“, რომ სხვა ანგარიშით შეხვიდე.
+A window opened to sign in {name}. Finish in it and in the browser, then press Check.	გაიხსნა ფანჯარა {name}-ში შესასვლელად. დაასრულე იქ და ბრაუზერში, შემდეგ დააჭირე შემოწმებას.

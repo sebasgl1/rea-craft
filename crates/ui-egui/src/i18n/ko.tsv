@@ -1521,3 +1521,9 @@ When a build is ready	빌드가 준비되면
 Keep the original's files in the project, or delete them (they're taken out again when needed).	원본 파일을 프로젝트에 남기거나 지웁니다(필요하면 다시 꺼냅니다).
 Keep them	남기기
 Delete them	지우기
+Sign in	로그인
+Add another account	다른 계정 추가
+Opens a window to sign in to the account of this folder.	이 폴더의 계정으로 로그인하는 창을 엽니다.
+Adds this AI again with a folder of its own, for another account.	이 AI를 자체 폴더와 함께 다시 추가해 다른 계정으로 씁니다.
+{name} was added. Press "Sign in" on it to sign in with the other account.	{name}을(를) 추가했습니다. 그 카드에서 "로그인"을 눌러 다른 계정으로 로그인하세요.
+A window opened to sign in {name}. Finish in it and in the browser, then press Check.	{name} 로그인 창이 열렸습니다. 그 창과 브라우저에서 마친 뒤 확인을 누르세요.

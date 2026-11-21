@@ -1521,3 +1521,9 @@ When a build is ready	Kui ehitus on valmis
 Keep the original's files in the project, or delete them (they're taken out again when needed).	Jäta originaali failid projekti alles või kustuta need (vajadusel võetakse uuesti).
 Keep them	Jäta alles
 Delete them	Kustuta
+Sign in	Logi sisse
+Add another account	Lisa teine konto
+Opens a window to sign in to the account of this folder.	Avab akna selle kausta kontole sisselogimiseks.
+Adds this AI again with a folder of its own, for another account.	Lisab selle tehisaru uuesti oma kaustaga, teise konto jaoks.
+{name} was added. Press "Sign in" on it to sign in with the other account.	{name} on lisatud. Vajuta sellel „Logi sisse“, et teise kontoga sisse logida.
+A window opened to sign in {name}. Finish in it and in the browser, then press Check.	Avati aken {name} sisselogimiseks. Lõpeta seal ja brauseris, siis vajuta Kontrolli.

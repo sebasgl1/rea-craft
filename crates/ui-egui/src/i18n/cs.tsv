@@ -1521,3 +1521,9 @@ When a build is ready	Když je sestavení hotové
 Keep the original's files in the project, or delete them (they're taken out again when needed).	Ponechat soubory originálu v projektu, nebo je smazat (v případě potřeby se vyjmou znovu).
 Keep them	Ponechat
 Delete them	Smazat
+Sign in	Přihlásit se
+Add another account	Přidat další účet
+Opens a window to sign in to the account of this folder.	Otevře okno pro přihlášení k účtu této složky.
+Adds this AI again with a folder of its own, for another account.	Přidá tuto AI znovu s vlastní složkou, pro jiný účet.
+{name} was added. Press "Sign in" on it to sign in with the other account.	{name} je přidán. Klepni na ní na „Přihlásit se“ a přihlas se druhým účtem.
+A window opened to sign in {name}. Finish in it and in the browser, then press Check.	Otevřelo se okno pro přihlášení {name}. Dokonči to v něm a v prohlížeči, pak klepni na Ověřit.

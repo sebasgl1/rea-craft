@@ -1521,3 +1521,9 @@ When a build is ready	Derleme hazır olunca
 Keep the original's files in the project, or delete them (they're taken out again when needed).	Orijinalin dosyalarını projede tut ya da sil (gerekince yeniden çıkarılır).
 Keep them	Tut
 Delete them	Sil
+Sign in	Oturum aç
+Add another account	Başka hesap ekle
+Opens a window to sign in to the account of this folder.	Bu klasörün hesabında oturum açmak için bir pencere açar.
+Adds this AI again with a folder of its own, for another account.	Bu yapay zekâyı kendi klasörüyle yeniden ekler, başka bir hesap için.
+{name} was added. Press "Sign in" on it to sign in with the other account.	{name} eklendi. Diğer hesapla girmek için üzerinde "Oturum aç"a bas.
+A window opened to sign in {name}. Finish in it and in the browser, then press Check.	{name} için oturum açma penceresi açıldı. Orada ve tarayıcıda bitir, sonra Kontrol et'e bas.

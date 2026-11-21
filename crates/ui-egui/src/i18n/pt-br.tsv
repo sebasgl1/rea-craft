@@ -1521,3 +1521,9 @@ When a build is ready	Quando uma construção fica pronta
 Keep the original's files in the project, or delete them (they're taken out again when needed).	Manter os arquivos do original no projeto ou apagá-los (são tirados de novo quando precisar).
 Keep them	Manter
 Delete them	Apagar
+Sign in	Entrar
+Add another account	Adicionar outra conta
+Opens a window to sign in to the account of this folder.	Abre uma janela para entrar na conta desta pasta.
+Adds this AI again with a folder of its own, for another account.	Adiciona esta IA de novo com uma pasta própria, para outra conta.
+{name} was added. Press "Sign in" on it to sign in with the other account.	{name} foi adicionado. Toque em "Entrar" nele para entrar com a outra conta.
+A window opened to sign in {name}. Finish in it and in the browser, then press Check.	Abriu uma janela para entrar em {name}. Termine nela e no navegador, depois toque em Verificar.

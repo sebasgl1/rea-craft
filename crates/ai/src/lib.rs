@@ -773,6 +773,63 @@ impl AiHub {
         Ok(true)
     }
 
+    /// Add another account of an agent app that keeps its sign-in in a folder of its own (Claude
+    /// Code): a copy of `name` called "<name> 2" (or the next free number) whose folder is
+    /// `~/.claude-2` (the same number), not signed in yet. Returns the new AI's name.
+    pub fn add_account(&self, name: &str) -> Result<String, ToolError> {
+        let mut cfg = self.config_to_change()?;
+        let Some(b) = cfg.backends.iter().find(|b| b.config.name == name).cloned() else {
+            return Err(ToolError::invalid(format!("No AI is called {name}.")).with_remediation("See `craft-anything-cli ai list`."));
+        };
+        if folder_var(&b.config).is_none() {
+            return Err(
+                ToolError::invalid(format!("{name} doesn't keep its sign-in in a folder of its own.")).with_remediation("Another account is for Claude Code.")
+            );
+        }
+        if b.config.ssh_host.as_deref().is_some_and(|h| !h.trim().is_empty()) {
+            return Err(ToolError::invalid(format!("{name} runs on another computer."))
+                .with_remediation("Add the other account on that computer, or give it a folder there with `ai folder`."));
+        }
+        let program = cli_agents::program_for(&b.config.model);
+        let base = name.trim_end_matches(|c: char| c.is_ascii_digit()).trim_end();
+        let base = if base.is_empty() { name } else { base };
+        let folders: Vec<String> = cfg.backends.iter().filter_map(|e| e.options.config_dir_text().map(str::to_string)).collect();
+        let (new_name, folder) = (2..100)
+            .map(|i| (format!("{base} {i}"), format!("~/.{program}-{i}")))
+            .find(|(n, f)| !cfg.backends.iter().any(|e| &e.config.name == n) && !folders.contains(f))
+            .ok_or_else(|| ToolError::invalid("Too many accounts already."))?;
+        let mut entry = b;
+        entry.config.name = new_name.clone();
+        entry.options.config_dir = Some(folder);
+        cfg.backends.push(entry);
+        self.save_config(&cfg)?;
+        Ok(new_name)
+    }
+
+    /// Open a window where `name`'s agent app signs in, in that AI's own folder (Claude Code:
+    /// `claude auth login` with its CLAUDE_CONFIG_DIR). The person finishes there and in the
+    /// browser it opens. Returns the folder signed in to (empty: the agent's usual one).
+    pub fn sign_in(&self, name: &str) -> Result<String, ToolError> {
+        let cfg = self.config();
+        let Some(b) = cfg.backends.iter().find(|b| b.config.name == name) else {
+            return Err(ToolError::invalid(format!("No AI is called {name}.")).with_remediation("See `craft-anything-cli ai list`."));
+        };
+        let Some(var) = folder_var(&b.config) else {
+            return Err(ToolError::invalid(format!("{name} isn't signed in from here.")).with_remediation("Sign in from the agent app itself."));
+        };
+        if b.config.ssh_host.as_deref().is_some_and(|h| !h.trim().is_empty()) || craft_anything_platform::in_flatpak() {
+            let hint = cli_agents::sign_in_hint_in("not logged in", craft_anything_platform::in_flatpak(), b.options.config_dir_here().as_deref());
+            return Err(ToolError::invalid(format!("{name} can't open its sign-in from here.")).with_remediation(hint.unwrap_or_default()));
+        }
+        let program = cli_agents::program_of(&b.config, &b.options)?;
+        let folder = b.options.config_dir_here();
+        if let Some(f) = &folder {
+            std::fs::create_dir_all(f).map_err(|e| ToolError::io(f.display(), e))?;
+        }
+        cli_agents::open_sign_in_window(&program, &["auth", "login"], var, folder.as_deref())?;
+        Ok(folder.map(|f| f.display().to_string()).unwrap_or_default())
+    }
+
     /// Each backend's options (an agent app's program and model…), by name.
     pub fn options(&self) -> std::collections::BTreeMap<String, BackendOptions> {
         self.config().backends.into_iter().map(|b| (b.config.name, b.options)).collect()

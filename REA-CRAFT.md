@@ -50,6 +50,11 @@ recrear (Estudiar → Construir → Verificar → Refinar) lo use bien.
    proyecto, junto a `app/`, y no a la carpeta temporal del sistema. En Settings → Builds:
    *Archivos del original* (En el proyecto / Carpeta temporal) y *Cuando una construcción está
    lista* (Conservarlos / Borrarlos). Fuera de una construcción siguen yendo a la carpeta temporal.
+6. **Dos cuentas de Claude Code a la vez**: cada cuenta vive en su propia carpeta
+   (`CLAUDE_CONFIG_DIR`). En Settings → AI, la tarjeta de Claude Code tiene **Agregar otra cuenta**
+   (crea "Claude Code 2" con la carpeta `~/.claude-2`) e **Iniciar sesión** (abre una ventana con
+   `claude auth login` en la carpeta de esa tarjeta). Se cambia de cuenta con **Construir con esto**.
+   Desde la CLI: `craft-anything-cli ai add-account "Claude Code"` y `craft-anything-cli ai login "Claude Code 2"`.
 
 ## Prueba rápida en tu PC
 

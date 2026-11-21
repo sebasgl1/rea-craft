@@ -1521,3 +1521,9 @@ When a build is ready	建置完成時
 Keep the original's files in the project, or delete them (they're taken out again when needed).	把原版的檔案留在專案裡，或刪除（需要時會再次取出）。
 Keep them	保留
 Delete them	刪除
+Sign in	登入
+Add another account	新增另一個帳號
+Opens a window to sign in to the account of this folder.	開啟視窗，登入此資料夾對應的帳號。
+Adds this AI again with a folder of its own, for another account.	用一個獨立資料夾再次新增此 AI，用於另一個帳號。
+{name} was added. Press "Sign in" on it to sign in with the other account.	已新增 {name}。在它上面點「登入」，用另一個帳號登入。
+A window opened to sign in {name}. Finish in it and in the browser, then press Check.	已開啟 {name} 的登入視窗。在視窗和瀏覽器中完成後，點「檢查」。

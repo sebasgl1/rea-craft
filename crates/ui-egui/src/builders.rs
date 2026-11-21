@@ -347,6 +347,30 @@ impl CraftApp {
         });
     }
 
+    /// Add another account of an agent app (Claude Code) with a folder of its own.
+    pub fn add_agent_account(&mut self, name: &str) {
+        let (hub, name) = (self.hub.clone(), name.to_string());
+        self.jobs.spawn(tr("Add another account"), false, move |_| {
+            let added = hub.add_account(&name).map_err(|e| e.for_people())?;
+            Ok(crate::Done::Said(
+                crate::i18n::trf("{name} was added. Press \"Sign in\" on it to sign in with the other account.", &[("name", &added)]),
+                Box::new(crate::backends(&hub)),
+            ))
+        });
+    }
+
+    /// Open the window where an agent app (Claude Code) signs in to the account of its folder.
+    pub fn sign_in_agent(&mut self, name: &str) {
+        let (hub, name) = (self.hub.clone(), name.to_string());
+        self.jobs.spawn(tr("Sign in"), false, move |_| {
+            hub.sign_in(&name).map_err(|e| e.for_people())?;
+            Ok(crate::Done::Said(
+                crate::i18n::trf("A window opened to sign in {name}. Finish in it and in the browser, then press Check.", &[("name", &name)]),
+                Box::new(crate::backends(&hub)),
+            ))
+        });
+    }
+
     /// Remove an AI and its stored key.
     pub fn remove_backend(&mut self, name: &str) {
         let (hub, name) = (self.hub.clone(), name.to_string());

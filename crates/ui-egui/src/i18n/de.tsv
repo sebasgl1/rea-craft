@@ -1521,3 +1521,9 @@ When a build is ready	Wenn ein Build fertig ist
 Keep the original's files in the project, or delete them (they're taken out again when needed).	Die Dateien des Originals im Projekt behalten oder löschen (sie werden bei Bedarf neu geholt).
 Keep them	Behalten
 Delete them	Löschen
+Sign in	Anmelden
+Add another account	Weiteres Konto hinzufügen
+Opens a window to sign in to the account of this folder.	Öffnet ein Fenster zur Anmeldung beim Konto dieses Ordners.
+Adds this AI again with a folder of its own, for another account.	Fügt diese KI noch einmal mit eigenem Ordner hinzu, für ein anderes Konto.
+{name} was added. Press "Sign in" on it to sign in with the other account.	{name} wurde hinzugefügt. Tippe dort auf „Anmelden“, um dich mit dem anderen Konto anzumelden.
+A window opened to sign in {name}. Finish in it and in the browser, then press Check.	Ein Fenster zur Anmeldung von {name} wurde geöffnet. Schließe dort und im Browser ab und tippe dann auf Prüfen.
