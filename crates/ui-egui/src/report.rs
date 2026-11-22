@@ -88,7 +88,8 @@ pub fn markdown(chat: &[ChatItem], target: Option<&TargetInfo>, clean_room: bool
             evidence_md(&mut out, e);
         }
     }
-    let _ = writeln!(out, "\n---\nMade with Craft Anything {}.", env!("CARGO_PKG_VERSION"));
+    let build = crate::updates::REA_CRAFT_BUILD.map(|b| format!(" (REA-Craft {b})")).unwrap_or_default();
+    let _ = writeln!(out, "\n---\nMade with Craft Anything {}{build}.", env!("CARGO_PKG_VERSION"));
     out
 }
 

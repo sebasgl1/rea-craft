@@ -1527,3 +1527,5 @@ Opens a window to sign in to the account of this folder.	Avab akna selle kausta 
 Adds this AI again with a folder of its own, for another account.	Lisab selle tehisaru uuesti oma kaustaga, teise konto jaoks.
 {name} was added. Press "Sign in" on it to sign in with the other account.	{name} on lisatud. Vajuta sellel „Logi sisse“, et teise kontoga sisse logida.
 A window opened to sign in {name}. Finish in it and in the browser, then press Check.	Avati aken {name} sisselogimiseks. Lõpeta seal ja brauseris, siis vajuta Kontrolli.
+REA-Craft build	REA-Crafti ehitus
+local	kohalik

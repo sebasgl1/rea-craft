@@ -1527,3 +1527,5 @@ Opens a window to sign in to the account of this folder.	Abre uma janela para en
 Adds this AI again with a folder of its own, for another account.	Adiciona esta IA de novo com uma pasta própria, para outra conta.
 {name} was added. Press "Sign in" on it to sign in with the other account.	{name} foi adicionado. Toque em "Entrar" nele para entrar com a outra conta.
 A window opened to sign in {name}. Finish in it and in the browser, then press Check.	Abriu uma janela para entrar em {name}. Termine nela e no navegador, depois toque em Verificar.
+REA-Craft build	Build REA-Craft
+local	local

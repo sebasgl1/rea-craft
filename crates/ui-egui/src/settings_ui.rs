@@ -158,7 +158,7 @@ fn about(ui: &mut Ui) {
     let t = Tokens::get(ui.ctx());
     ui.label(theme::heading("Craft Anything", theme::SECTION));
     ui.add_space(theme::space::XS);
-    let version = format!("{} {}", tr("Version"), env!("CARGO_PKG_VERSION"));
+    let version = crate::updates::version_text();
     ui.horizontal(|ui| {
         ui.add(egui::Label::new(RichText::new(&version).color(t.text_dim).size(theme::BODY)).selectable(true));
         if icons::button(ui, "copy", theme::ControlSize::Small, false, "Copy the version").clicked() {

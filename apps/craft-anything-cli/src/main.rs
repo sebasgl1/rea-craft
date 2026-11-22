@@ -383,6 +383,7 @@ fn capabilities(cli: &Cli, f: Format) -> u8 {
     emit(
         &json!({
             "version": env!("CARGO_PKG_VERSION"),
+            "rea_craft_build": option_env!("REA_CRAFT_BUILD").unwrap_or("local"),
             "analysis_mode": if session.clean_room() { "clean-room" } else { "deep" },
             "tools": engine.registry().len(),
             "toolsets": toolsets,

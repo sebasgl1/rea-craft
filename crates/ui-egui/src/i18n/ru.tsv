@@ -1527,3 +1527,5 @@ Opens a window to sign in to the account of this folder.	Открывает ок
 Adds this AI again with a folder of its own, for another account.	Добавляет этот ИИ ещё раз со своей папкой, для другого аккаунта.
 {name} was added. Press "Sign in" on it to sign in with the other account.	{name} добавлен. Нажмите на нём «Войти», чтобы войти с другим аккаунтом.
 A window opened to sign in {name}. Finish in it and in the browser, then press Check.	Открылось окно входа для {name}. Завершите вход в нём и в браузере, затем нажмите «Проверить».
+REA-Craft build	Сборка REA-Craft
+local	локальная

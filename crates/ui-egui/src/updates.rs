@@ -8,6 +8,16 @@ use std::sync::mpsc::{Receiver, TryRecvError, channel};
 pub const APP: App = App::new("craft-anything", "Craft Anything", "Build and investigate apps", "storytold/craft-anything");
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
+/// The REA-Craft release this program was built as (`v0.6.1-rea.8`), set by the release workflow;
+/// none for a build made by hand.
+pub const REA_CRAFT_BUILD: Option<&str> = option_env!("REA_CRAFT_BUILD");
+
+/// "Version 0.6.1 · REA-Craft build v0.6.1-rea.8", for About and reports.
+pub fn version_text() -> String {
+    let build = REA_CRAFT_BUILD.filter(|b| !b.trim().is_empty()).map_or_else(|| tr("local").to_string(), str::to_string);
+    format!("{} {VERSION} · {} {build}", tr("Version"), tr("REA-Craft build"))
+}
+
 /// A pinned, nightly, or unknown launcher choice must never be replaced by a stable update.
 fn stable_choice() -> Result<(), String> {
     if Pins::load_default().choice(APP.id) == Choice::Stable {

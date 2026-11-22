@@ -982,3 +982,5 @@ Opens a window to sign in to the account of this folder.	このフォルダー�
 Adds this AI again with a folder of its own, for another account.	このAIを専用フォルダー付きでもう一度追加し、別のアカウントに使います。
 {name} was added. Press "Sign in" on it to sign in with the other account.	{name} を追加しました。そのカードの「サインイン」を押して、もう一つのアカウントでサインインしてください。
 A window opened to sign in {name}. Finish in it and in the browser, then press Check.	{name} にサインインするウィンドウを開きました。そこでとブラウザーで完了してから「確認」を押してください。
+REA-Craft build	REA-Craft ビルド
+local	ローカル

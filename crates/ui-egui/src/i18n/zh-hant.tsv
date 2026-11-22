@@ -1527,3 +1527,5 @@ Opens a window to sign in to the account of this folder.	開啟視窗，登入�
 Adds this AI again with a folder of its own, for another account.	用一個獨立資料夾再次新增此 AI，用於另一個帳號。
 {name} was added. Press "Sign in" on it to sign in with the other account.	已新增 {name}。在它上面點「登入」，用另一個帳號登入。
 A window opened to sign in {name}. Finish in it and in the browser, then press Check.	已開啟 {name} 的登入視窗。在視窗和瀏覽器中完成後，點「檢查」。
+REA-Craft build	REA-Craft 建置
+local	本機
